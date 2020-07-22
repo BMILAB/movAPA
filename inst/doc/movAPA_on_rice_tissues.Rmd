@@ -1,0 +1,928 @@
+---
+title: "Analyses of APA dynamics across rice tissues with the movAPA package"
+author: "Xiaohui Wu, Wenbin Ye, Tao Liu, Hongjuan Fu"
+date: "Last modified 2020-07-25"
+output: 
+  rmarkdown::html_document:
+    toc:  true
+    toc_depth: 6
+    number_sections: true
+    theme: cerulean
+    hightlight: tango
+    fig_width: 5
+    fig_height: 4
+    df_print: paged
+vignette: >
+  %\VignetteIndexEntry{movAPA_on_rice_tissues}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.height = 5.5,
+  collapse = TRUE,
+  warning = FALSE,
+  comment = "#>"
+)
+```
+
+# Overview
+We investigated the application of movAPA on a poly(A) site dataset of 14 tissues in [*Oryza sativa japonica*](https://github.com/BMILAB/movAPA) from 3'end sequencing ([Fu, et al., 2016](#1)). We used a subset of the rice data containing 1233 PACs in 455 genes from three tissues (embryo, anther, and mature pollen) for demonstration. The original dataset containing full list of PACs can be downloaded from plantAPAdb ([Zhu et al, 2019](#2)). Here the poly(A) sites are already poly(A) site clusters (PACs) which were grouped from nearby cleavage sites.
+
+# Preparations
+
+## Rice PAC data
+movAPA implemented the *PACdataset* object for storing the expression levels and annotation of PACs from various conditions/samples. Almost all analyses of poly(A) site data in movAPA are based on the *PACdataset*. The "counts" matrix is the first element in the array list of *PACdataset*, which stores non-negative values representing expression levels of PACs. The "colData" matrix records the sample information and the "anno" matrix stores the genome annotation or additional information of the poly(A) site data. 
+
+The moveAPA package includes an example rice PAC data stored as a *PACdataset* object, which contains 1233 PACs from 455 genes. First load movAPA by *library(movAPA)* and then load the example data.
+
+```{r include=FALSE, eval=TRUE}
+library(movAPA)
+##source('E:\\sys\\code\\R\\movAPA\\movAPA\\R\\R_funclib_movAPA.r')
+```
+```{r, eval=-1}
+library(movAPA, warn.conflicts = FALSE, quietly=TRUE)
+data("PACds")
+PACds
+```
+
+
+## Reference genome
+The reference genome is not necessary, while it is required for removing internal priming or poly(A) signal analyses. movAPA uses reference genome sequences that are represented as a *BSgenome* object or stored in a fasta file. The *BSgenome* of rice for this example can be downloaded from the [github website of movAPA](https://github.com/BMILAB/movAPA/tree/master/BSgenome%20library). Please refer to the *BSgenome* package for making a *BSgenome* object if there is no corresponding *BSgenome* package for your species. Alternatively, the genome assembly can be stored in a fasta file, which can also be used as input for movAPA.
+
+```{r message=FALSE, echo=-1}
+devtools::load_all("/media/bmi/My Passport/scPACext_HC_288cells/movAPA/movAPA/BSgenome.Oryza.ENSEMBL.IRGSP1")
+library("BSgenome.Oryza.ENSEMBL.IRGSP1")
+bsgenome <- BSgenome.Oryza.ENSEMBL.IRGSP1
+```
+
+## Genome annotation
+Genome annotation stored in a GFF/GTF file or a TXDB R object can be used for annotating PACs. The function *parseGff* is used to parse the given annotation and the processed annotation can be saved into an rdata object for further use. The GFF file or the processed rdata file of rice for this example can be downloaded from the github website of movAPA (  <https://github.com/BMILAB/movAPA>).
+
+```{r eval=FALSE}
+gffFile="Oryza_sativa.IRGSP-1.0.42.gff3"
+gff=parseGff(gffFile) 
+save(gff, file='Oryza_sativa.IRGSP-1.0.42.gff.rda')
+```
+
+# Preprocessing of PAC data
+## Remove internal priming artifacts
+Internal priming (IP) artifacts can be removed by the *removePACdsIP* function. Here, PACs with six consecutive or more than six As within the -10 to +10 nt window are considered as internal priming artifacts. We scan the internal priming artifacts in PACds and get two *PACdatasets* recording internal priming PACs and real PACs. Since IP artifacts are already removed in the example PACds, we did not perform this step in this case study.
+
+```{r}
+PACdsIP=removePACdsIP(PACds, bsgenome, returnBoth=TRUE, 
+                      up=-10, dn=10, conA=6, sepA=7)
+length(PACdsIP$real)
+length(PACdsIP$ip)
+```
+
+## Group nearby cleavage sites
+The function *mergePACds* can be used to group nearby cleavage sites into PACs. Here is an example to group nearby PACs within 100 bp into one PAC.
+
+```{r results='hide'}
+PACdsClust=mergePACds(PACds, d=100)
+```
+```{r}
+length(PACds)
+length(PACdsClust)
+```
+
+## Merge multiple PAC datasets
+The function *mergePACds* can also be used to merge multiple PACdatasets. Notably, the annotation columns (e.g., gene, ftr) are lost after merging, you need call *annotatePAC* to annotate the merged PACds.
+```{r}
+## Constuct another demo PACdataset for merging.
+PACds2=PACds
+PACds2@anno$coord = PACds2@anno$coord + sample(-50:50, 1)
+## You may also change the sample names and group names.
+rownames(PACds2@colData)=paste0(rownames(PACds2@colData),'v2')
+PACds2@colData$group=paste0(PACds2@colData$group,'v2')
+colnames(PACds2@counts)=paste0(colnames(PACds2@counts),'v2')
+## Construct a list of PACds to be merged.
+PACdsList=list(pac1=PACds, pac2=PACds2)
+```
+```{r results='hide'}
+## Merge two PACdatasets, nearby PACs within 24bp of each other 
+## will be merged into one PAC.
+pp=mergePACds(PACdsList, d=24)
+```
+```{r}
+tail(pp@colData)
+pp
+```
+
+## Normalization
+The function *normalizePACds* can be called for normalization, which implements three strategies including TPM (Tags Per Million), the normalization method of DESeq ([Anders and Huber, 2010](#3)), and the TMM method used in EdgeR ([Robinson, et al., 2010](#4)).
+```{r results='hide'}
+## Here normalization method TMM (or EdgeR) is used, 
+## while you may also choose TPM or DESeq.
+PACds=normalizePACds(PACds, method='TMM')
+```
+```{r}
+## Library sizes after normalization.
+colSums(PACds@counts)
+```
+
+# Annotate PACs
+Users can use *annotatePAC* to annotate a *PACdataset* with a GFF/GTF file or a TXDB R object. Here we parse the genome annotation file in GFF3 format and save the processed annotation into a rdata object for further use.
+```{r eval=FALSE}
+gffFile="Oryza_sativa.IRGSP-1.0.42.gff3"
+gff=parseGff(gffFile) 
+save(gff, file='Oryza_sativa.IRGSP-1.0.42.gff.rda')
+```
+
+Then we can load the parsed annotation file.
+```{r include=FALSE, eval = TRUE}
+load('/media/bmi/My Passport/scPACext_HC_288cells/movAPA-old/movAPA/vignettes/Oryza_sativa.IRGSP-1.0.42.gff.rda')
+```
+```{r eval=FALSE}
+load('Oryza_sativa.IRGSP-1.0.42.gff.rda')
+```
+
+Here is an example to annotate PACds with the genome annotation. Because the demo data already contains the annotation, we removed the annotation columns before calling *annotatePAC*.
+```{r eval=FALSE}
+PACds1=PACds
+PACds1@anno[,c('gene','ftr','gene_type','ftr_start','ftr_end')]=NULL
+PACds1=annotatePAC(PACds1, gff)
+```
+
+We can output the annotated PACds and the sample information to text files.
+```{r eval=FALSE}
+writePACds(PACds1, file='rice_pac_data.txt', 
+           colDataFile = 'rice_pac_data.coldata.txt')
+```
+
+# Statistical analyses of PACs
+To make statistics of distributions of PACs for each sample, first we pooled replicates.
+```{r}
+PACds1=subsetPACds(PACds, group='group', pool=TRUE)
+head(PACds1@counts)
+```
+
+Then we can make statistics of distribution of PACs using different PAT cutoffs. minPAT=5 means that only PACs with >=5 reads are used for statistics.
+```{r}
+pstats=movStat(PACds1, minPAT=c(1, 5, 10, 20, 50, 60), ofilePrefix=NULL)
+names(pstats)
+pstats$pat10
+```
+
+Statistical results can be visualized by barplots to show PAC#, PAT#, APA gene%, PAC%, PAT% across samples and genomic regions. Here we plot all statistical results with cutoffs 5 and 10, with each plot having two smaller plots corresponding to the two cutoffs.
+```{r eval=FALSE}
+plotPACdsStat(pstats, pdfFile='PACds_stat.pdf', minPAT=c(5,10))
+```
+
+Plot specific cutoffs and conditions.
+```{r eval=FALSE}
+plotPACdsStat(pstats, pdfFile='PACds_stat_anther_embryo.pdf', 
+              minPAT=c(5,10), conds=c('anther','embryo'))
+```
+
+Plot the overall distributions using pooled samples (total) and two cutoffs.
+```{r eval=FALSE}
+plotPACdsStat(pstats, pdfFile='PACds_stat_total.pdf', 
+              minPAT=c(5,10), conds=c('total'))
+```
+
+Plot the overall distributions using pooled samples (total) and one cutoff.
+```{r eval=FALSE}
+plotPACdsStat(pstats, pdfFile='PACds_stat_total_PAT10.pdf', 
+              minPAT=c(10), conds=c('total'))
+```
+
+Plot figures to the current device.
+```{r fig.dim = c(6, 4), fig.align='left'}
+plotPACdsStat(pstats, pdfFile=NULL, minPAT=c(5,10))
+```
+
+# Poly(A) signals and sequences
+movAPA provides several functions, including *annotateByPAS*, *faFromPACds*, *kcount*, and *plotATCGforFAfile*, for sequence extraction and poly(A) signal identification.
+
+## Poly(A) signals
+Annotate PACs by corresponding signal of AATAAA located upstream 50 bp of the PAC.
+```{r}
+PACdsPAS=annotateByPAS(PACds, bsgenome, grams='AATAAA', 
+                       from=-50, to=-1, label=NULL)
+summary(PACdsPAS@anno$AATAAA_dist)
+```
+
+Scan AATAAA's 1nt variants.
+```{r}
+PACdsPAS=annotateByPAS(PACds, bsgenome, grams='V1', 
+                       from=-50, to=-1, label=NULL)
+table(PACdsPAS@anno$V1_gram)
+```
+
+Scan custom k-grams.
+```{r}
+PACdsPAS=annotateByPAS(PACds, bsgenome, 
+                       grams=c('AATAAA','ATTAAA','GATAAA','AAAA'),
+                       from=-50, to=-1, label='GRAM')
+table(PACdsPAS@anno$GRAM_gram)
+```
+
+Scan patterns with priority: AATAAA >> ATTAAA >> remaining k-grams.
+```{r}
+PACdsPAS=annotateByPAS(PACds, bsgenome, 
+                       grams=c('AATAAA','ATTAAA','GATAAA','AAAA'),
+                       priority=c(1,2,3,3), 
+                       from=-50, to=-1, label='GRAM')
+table(PACdsPAS@anno$GRAM_gram)
+```
+
+Plot signal logos.
+```{r message=FALSE, warning=FALSE}
+pas=PACdsPAS@anno$GRAM_gram[!is.na(PACdsPAS@anno$GRAM_gram)]
+plotSeqLogo(pas)
+```
+
+Here we show another example to scan mouse signals in rice PACs.
+First, we get mouse signals and set the priority.
+```{r}
+v=getVarGrams('mm')
+priority=c(1,2,rep(3, length(v)-2))
+```
+Then scan upstream regions of PACs for mouse signals.
+```{r}
+PACdsMM=annotateByPAS(PACds, bsgenome, grams=v, 
+                      priority=priority, 
+                      from=-50, to=-1, label='mm')
+```
+Prepare the data to plot PAS distributions.
+```{r results='hide'}
+pas=as.data.frame(cbind(region=PACdsMM@anno$ftr, PAS=PACdsMM@anno$mm_gram))
+pas$PAS[is.na(pas$PAS)]='NOPAS'
+pas$PAS[pas$PAS %in% v[-c(1:2)]]='Variants'
+n=pas %>% dplyr::group_by(region, PAS)  %>% dplyr::summarise(nPAC=n())
+n2=pas %>% dplyr::group_by(region)  %>% dplyr::summarise(nTot=n())
+n=merge(n, n2)
+n$PAC=n$nPAC/n$nTot
+n=n[n$PAS!='NOPAS', ]
+n$PAS=factor(n$PAS, levels=rev(c('AATAAA', 'ATTAAA','Variants', 'NOPAS')))
+n$region=factor(n$region, 
+                levels=c('3UTR','Ext_3UTR', 'intergenic','intron','CDS','5UTR'))
+```
+Plot PAS distributions.
+```{r fig.dim = c(6, 4), fig.align='left'}
+ggplot(data=n, aes(x=region, y=PAC, fill=PAS)) + 
+  geom_bar(stat="identity") + 
+  ylab("PAC Fraction") + theme_bw()
+```
+
+## Exract sequences
+The *faFromPACds* function provides various options to extract sequences of interest.
+
+```{r eval=FALSE}
+## Extract the sequence of PACs, from UPA_start to UPA_end. 
+faFromPACds(PACds, bsgenome, what='pac', fapre='pac')
+
+## Extract upstream 300 bp ~ downstream 100 bp around PACs, 
+## where the position of PAC is 301.
+faFromPACds(PACds, bsgenome, what='updn', fapre='updn', 
+            up=-300, dn=100)
+
+## Divide PACs into groups of genomic regions and then extract sequences for each group.
+faFromPACds(PACds, bsgenome, what='updn', fapre='updn', 
+            up=-100, dn=100, byGrp='ftr')
+
+## Extract sequences for only 3UTR PACs.
+faFromPACds(PACds, bsgenome, what='updn', fapre='updn', 
+            up=-300, dn=100, byGrp=list(ftr='3UTR'))
+
+## Extract sequences for only 3UTR PACs and separate sequences by strand.
+faFromPACds(PACds, bsgenome, what='updn', fapre='updn', 
+            up=-300, dn=100,
+            byGrp=list(ftr='3UTR', strand=c('+','-')))
+
+## Extract sequences of genomic regions where PACs are located.
+faFromPACds(PACds, bsgenome, what='region', fapre='region', byGrp='ftr')
+```
+
+Here we show some examples to extract sequences from different poly(A) signal regions. 
+```{r eval=FALSE}
+## The suggested signal regions when species is 'chlamydomonas_reinhardtii'.
+files=faFromPACds(PACds, bsgenome, what='updn', fapre='Chlamy.NUE', 
+                  up=-25, dn=-5, byGrp='ftr')
+files=faFromPACds(PACds, bsgenome, what='updn', fapre='Chlamy.FUE', 
+                  up=-150, dn=-25, byGrp='ftr')
+files=faFromPACds(PACds, bsgenome, what='updn', fapre='Chlamy.CE', 
+                  up=-5, dn=5, byGrp='ftr')
+files=faFromPACds(PACds, bsgenome, what='updn', fapre='Chlamy.DE', 
+                  up=-5, dn=30, byGrp='ftr')
+
+## The suggested signal regions when species is plant. 
+## In Arabidopsis or rice, signal regions are: FUE -200~-35, NUE -35~-10, CE -10~15.
+files=faFromPACds(PACds, bsgenome, what='updn', fapre='plants.NUE', 
+                  up=-35, dn=-10, byGrp='ftr')
+files=faFromPACds(PACds, bsgenome, what='updn', fapre='plants.FUE', 
+                  up=-200, dn=-35, byGrp='ftr')
+files=faFromPACds(PACds, bsgenome, what='updn', fapre='plants.CE', 
+                  up=-10, dn=15, byGrp='ftr')
+```
+
+## Base compostions and k-grams
+The function *plotATCGforFAfile* is for plotting single nucleotide profiles for given fasta file(s), which is particularly useful for discerning base compositions surrounding PACs.
+
+First trim sequences surrounding PACs. Sequences surrounding PACs in different genomic regions are extracted into files. The PAC position is 301.
+```{r}
+faFiles=faFromPACds(PACds, bsgenome, what='updn', fapre='updn', 
+                    up=-300, dn=100, byGrp='ftr')
+```
+
+Then plot base compositions for specific sequence file(s).
+```{r fig.dim=c(6,4)}
+faFiles=c("updn.3UTR.fa", "updn.Ext_3UTR.fa", "updn.intergenic.fa", "updn.intron.fa")
+## Plot single nucleotide profiles using the extracted sequences and merge all plots into one.
+plotATCGforFAfile (faFiles, ofreq=FALSE, opdf=FALSE, 
+                   refPos=301, mergePlots = TRUE)
+```
+
+We can also plot a single fasta file and specify a region.
+```{r eval=FALSE}
+plotATCGforFAfile (faFiles='updn.intron.fa', 
+                   ofreq=FALSE, opdf=FALSE, refPos=301)
+plotATCGforFAfile (faFiles='updn.intron.fa', 
+                   ofreq=FALSE, opdf=FALSE, refPos=NULL, 
+                   filepre ='NUE', start=250, end=350)
+```
+
+Users can also generate these plots into a PDF file and save the calculated base compositions.
+```{r eval=FALSE}
+plotATCGforFAfile (faFiles, ofreq=TRUE, opdf=TRUE, refPos=301, 
+                   filepre='singleBasePlot', mergePlots = TRUE)
+```
+
+After extracting sequences, we can call the *kcount* function to obtain the number of occurrences or frequencies of k-grams from the whole sequences or a specified region of sequences. Particularly, specific k-grams (e.g., AAUAAA, AUUAAA) or a value of k (e.g., k=6 means all hexamers) can be set. 
+
+```{r}
+## Count top 10 hexamers (k=6) in the NUE region 
+## (normally from 265~295 if the PAC is at 301).
+fafile='updn.3UTR.fa'
+kcount(fafile=fafile, k=6, from=265, to=295, topn=10)
+
+## Count given hexamers.
+kcount(fafile=fafile, grams=c('AATAAA','ATTAAA'), 
+       from=265, to=295, sort=FALSE)
+
+## Count AATAAA and its 1nt variants in a given region.
+kcount(fafile=fafile, grams='v1', from=265, to=295, sort=FALSE)
+```
+
+# Quantification of PACs by various metrics
+movAPA provides various metrics to measure the usages of PACs across samples, including three metrics for the quantification of the usage of each single poly(A) site by the *movPAindex* function and four metrics for the quantification of APA site usage of a gene by the *movAPAindex* function.
+
+## Quantification of each PAC by *movPAindex*
+*movPAindex* provides three metrics for the quantification of each PAC in a gene, including "ratio", "Shannon", and "geo". 
+First you can merge replicates of the same sample and remove lowly expressed PACs before calculate the index.
+```{r message=FALSE}
+p=subsetPACds(PACds, group='group', pool=TRUE, totPACtag=20)
+```
+
+Calculate the tissue-specificity. Q or H=0 means that the PAC is only expressed in one tissue. NA means the PAC is not expressed in the respective tissue.
+```{r}
+paShan=movPAindex(p, method='shan') 
+## Show some rows with low H value (which means high overall tissue-specificity).
+head(paShan[paShan$H<0.2742785, ], n=2)
+```
+
+Use the relative expression levels (ratio) to calculate tissue-specificity.
+```{r}
+paShan2=movPAindex(p, method='shan', shan.ratio = TRUE) 
+head(paShan2, n=2)
+```
+
+Cacluate the geo metric, which is only suitable for APA genes. NA means no PAC of the gene is expressed in the respective tissue. geo>0 means the PAC is used more than average usage of all PACs in the gene. geo~0 means similar usage; <0 means less usage.
+```{r}
+paGeo=movPAindex(p, method='geo')
+head(paGeo, n=2)
+```
+
+Cacluate the ratio metric, which is only suitable for APA genes. NA means no PAC of the gene is expressed in the respective tissue.
+```{r}
+paRatio=movPAindex(p, method='ratio')
+head(paRatio)
+```
+
+Plot a heatmap to show the distribution of tissue-specificity of PACs. It is only reasonable to plot the heatmap of the Shanno metric. Or you may filter the proximal or distal PAC of the gene first and plot the ratio or geo metrics.
+
+First, remove rows with NA and then plot the heatmap.
+```{r fig.dim=c(6,6), message=FALSE, warning=FALSE}
+paShanHm=paShan[, -(1:3)]
+paShanHm=paShanHm[rowSums(is.na(paShanHm))==0, ]
+library(ComplexHeatmap, quietly = TRUE)
+Heatmap(paShanHm, show_row_names=FALSE,  cluster_columns = FALSE, 
+        heatmap_legend_param = list(title = 'Tissue\nspecificity'))
+```
+
+Calculate the tissue-specificity for each replicate.
+```{r}
+paShan=movPAindex(PACds, method='shan')
+```
+
+```{r fig.dim=c(6,6)}
+## Plot heamap to show the consistency among replicates.
+paShanHm=paShan[, -(1:3)]
+paShanHm=paShanHm[rowSums(is.na(paShanHm))==0, ]
+Heatmap(paShanHm, show_row_names=FALSE,  cluster_columns = TRUE, 
+        heatmap_legend_param = list(title = 'Tissue\nspecificity'))
+```
+
+## Quantification of APA by *movAPAindex*
+The *movAPAindex* function provides four gene-level metrics for the quantification of APA site usage, including RUD (Relative Usage of Distal PAC) ([Ji, et al., 2009](#5)), WUL (Weighted 3' UTR Length) ([Ulitsky, et al., 2012](#6); [Fu, et al., 2016](#1)), SLR (Short to Long Ratio) ([Begik, et al., 2017](#7)), and GPI (Geometric Proximal Index) ([Shulman and Elkon, 2019](#8)).
+
+Get APA index using the WUL method.
+```{r}
+geneWUL=movAPAindex(p, method="WUL", choose2PA=NULL)
+head(geneWUL, n=2)
+```
+
+Plot gene's metric values across samples by heatmap with the ComplexHeatmap package.
+```{r eval=FALSE}
+## Remove NA rows before plotting heatmap.
+geneWUL=geneWUL[rowSums(is.na(geneWUL))==0, ]
+Heatmap(geneWUL, show_row_names=FALSE)
+```
+
+Get APA index using the RUD method.
+```{r eval=FALSE}
+geneRUD=movAPAindex(p, method="RUD",
+                    choose2PA=NULL, RUD.includeNon3UTR=TRUE)
+geneRUD=geneRUD[rowSums(is.na(geneRUD))==0, ]
+head(geneRUD, n=2)
+Heatmap(geneRUD, show_row_names=FALSE,  cluster_columns = F, 
+        heatmap_legend_param = list(title = 'RUD'))
+```
+
+Get APA index by method=SLR, using the proximal and distal PACs.
+```{r eval=FALSE}
+geneSLR=movAPAindex(p, method="SLR", choose2PA='PD')
+head(geneSLR, n=2)
+geneSLR=geneSLR[rowSums(is.na(geneSLR))==0, ]
+Heatmap(geneSLR, show_row_names=FALSE)
+```
+
+Get APA index by method=GPI, using the proximal and distal PACs.
+```{r fig.dim=c(6,6)}
+geneGPI=movAPAindex(PACds, method="GPI", choose2PA='PD')
+head(geneGPI)
+geneGPI=geneGPI[rowSums(is.na(geneGPI))==0, ]
+Heatmap(geneGPI, show_row_names=FALSE,  cluster_columns = TRUE, 
+        heatmap_legend_param = list(title = 'GPI'))
+```
+
+# DE genes
+3' seq data have been demonstrated informative in quantifying expression levels of genes by summing up 3' seq reads of all PACs in a gene ([Lianoglou, et al., 2013](#9)). To detect DE genes between samples with 3' seq, we implemented the function *movDEgene* with the widely used R package DESeq2.
+
+## Detect DE genes
+First we show an example of detecting DE genes for two conditions.
+```{r results='hide', message=FALSE}
+## Subset two conditions first.
+pacds=subsetPACds(PACds, group='group',cond1='anther', cond2='embryo')
+## Detect DE genes using DESeq2 method, 
+## only genes with total read counts in all samples >=50 are used.
+DEgene=movDEGene(PACds=pacds, method='DESeq2', group='group', minSumPAT=50)
+```
+
+Make statistics of the DE gene results; genes with padj<0.05 & log2FC>=0.5 are considered as DE genes.
+```{r}
+stat=movStat(object=DEgene, padjThd=0.05, valueThd=0.5)
+stat$nsig
+head(stat$siglist$anther.embryo)
+```
+
+We can also detect DE genes among more than two conditions.
+```{r results='hide', message=FALSE}
+DEgene=movDEGene(PACds=PACds, method='DESeq2', group='group', minSumPAT=50)
+stat=movStat(object=DEgene, padjThd=0.05, valueThd=1)
+```
+```{r}
+## Number of DE genes in each pair of conditions.
+stat$nsig
+## Overlap between condition pairs.
+stat$ovp
+```
+
+## Output DE genes
+Output *movStat* results into files: "DEgene.plots.pdf" and 'DEgene.stat'. Several heatmaps are generated.
+```{r eval=FALSE}
+outputHeatStat(heatStats=stat, ostatfile='DEgene.stat', plotPre='DEgene')
+```
+
+You can further call movSelect() to select DE gene results with more information. Select DE gene results with full information including the read counts in each sample.
+```{r message=FALSE}
+selFull=movSelect(DEgene, condpair='embryo.anther', padjThd=0.05, valueThd=1, 
+                  out='full', PACds=PACds)
+head(selFull)
+```
+
+Select DE gene results with only padj and value. Here value is log2(anther/embryo).
+```{r}
+sel=movSelect(DEgene, condpair='anther.embryo', 
+              padjThd=0.05, valueThd=1, out='pv')
+head(sel)
+```
+
+Output gene names of DE genes.
+```{r}
+sel=movSelect(DEgene, condpair='embryo.anther', 
+              padjThd=0.05, upThd=0.5, out='gene')
+head(sel)
+```
+
+# DE PACs
+movAPA provides the function *movDEPAC* to identify DE PACs between samples. Three strategies were utilized: (i) using DESeq2 with replicates; (ii) using DEXseq with replicates; (iii) using chi-squared test without replicates ("chisq"). 
+
+## Detect DE PACs
+First we show an example of detecting DE PACs among all pairwise conditions using three different methods. Only PACs with total read counts in all samples >=20 are used.
+```{r results='hide', message=FALSE}
+DEPAC=movDEPAC(PACds, method='DESeq2', group='group', minSumPAT=20)
+DEXPAC=movDEPAC(PACds, method='DEXseq', group='group', minSumPAT=20)
+DEqPAC=movDEPAC(PACds, method='chisq', group='group', minSumPAT=20)
+```
+
+Number of DE PACs among methods.
+```{r results='hide'}
+## Get significant DE results.
+stat1=movStat(object=DEPAC, padjThd=0.05, valueThd=1)
+stat2=movStat(object=DEXPAC, padjThd=0.05, valueThd=1)
+stat3=movStat(object=DEqPAC, padjThd=0.05, valueThd=0.95)
+```
+```{r fig.dim = c(6, 4)}
+## Count the number of DE PACs by different methods.
+nsig=as.data.frame(cbind(stat1$nsig, stat2$nsig, stat3$nsig))
+colnames(nsig)=c('DESeq2','DEXseq','Chisq.test')
+nsig$tissueA.tissueB=rownames(nsig)
+nsig
+## Plot a barplot.
+nsig=melt(nsig, variable.name='Method')
+ggplot(data=nsig, aes(x=tissueA.tissueB, y=value, fill=Method)) + 
+  geom_bar(stat="identity", position=position_dodge()) + 
+  ylab("DE PAC#") + theme_bw()
+```
+
+We can also detect DE PACs between two given conditions.
+```{r eval=FALSE}
+## First subset PACs in two conditions.
+PACds1=subsetPACds(PACds, group='group', 
+                   cond1='anther', cond2='embryo', choosePA='apa')
+## Detect DE PACs.
+DEPAC1=movDEPAC(PACds1, method='DESeq2', group='group', minSumPAT=10)
+DEXPAC1=movDEPAC(PACds1, method='DEXseq', group='group', minSumPAT=10)
+DEqPAC1=movDEPAC(PACds1, method='chisq', group='group', minSumPAT=10)
+```
+
+## Statistics of DE PACs
+Make statistics of the DE PACs result by DESeq2 method (*DEPAC*).
+```{r results='hide'}
+stat=movStat(object=DEPAC, padjThd=0.05, valueThd=1)
+```
+```{r}
+## Number of DE PACs between conditions.
+stat$nsig
+## Overlap of DE PACs between different pairs of conditions.
+head(stat$ovp)
+## DE PAC list
+head(stat$siglist[[1]])
+```
+We can also plot a venn diagram to show the overlap among results from different pairwise comparisons.
+```{r eval=FALSE}
+library(VennDiagram)
+x=venn.diagram(stat$siglist, fill=brewer.pal(3, "Set1"), cex=2, 
+               cat.fontface=4,  filename='DEPAC.venn')
+```
+
+Stat the DE PAC result from the chisq-test method, here the value column of DEqPAC is 1-pvalue_of_the_gene. So using padjThd=0.05 and valueThd=0.95 means filtering DE PACs with adjusted pvalue of PAC <0.05 and adjusted pvalue of gene <0.05.
+```{r eval=FALSE}
+stat=movStat(object=DEqPAC, padjThd=0.05, valueThd=0.95)
+```
+
+## Output DE PACs
+We can use *movSelect* to output full or simple list of DE PACs.
+```{r message=FALSE, warning=FALSE}
+## Here method is DEXseq, so the valueThd (log2FC) threshold is automatelly determined. 
+sel=movSelect(aMovRes=DEXPAC, condpair='embryo.anther', 
+              padjThd=0.1, out='full', PACds=PACds)
+head(sel, n=2)
+
+## You can also mannually set a log2FC threshold.
+sel=movSelect(aMovRes=DEXPAC, condpair='embryo.anther', 
+              padjThd=0.1, valueThd=2, out='pa');
+head(sel)
+
+## Filter only up-regulated PACs in embryo 
+## (value=log2(embryo_this_others/anther_this_others)).
+sel=movSelect(aMovRes=DEXPAC, condpair='embryo.anther', 
+              padjThd=0.1, upThd=2, out='full', PACds=PACds)
+head(sel, 2) 
+```
+
+## Visualize DE PACs in a gene
+Here we take the DEPAC result for example to show the visualization of DE PACs in a gene.
+```{r eval=FALSE}
+## Filter less results and plot the heatmap clearly.
+stat=movStat(object=DEPAC, padjThd=0.001, valueThd=8)
+outputHeatStat(heatStats=stat, ostatfile='DEPAC.stat', plotPre='DEPAC', 
+               show_rownames = TRUE)
+```
+
+Visualize DE PACs in an example gene by *movViz*.
+First, we examine all PACs in this gene. There are three PACs, two in 3'UTR and one in extended 3'UTR. But the expression level of the PAC in extended 3UTR is only 3.
+```{r}
+gene='Os05g0541900'
+gp=PACds[PACds@anno$gene==gene, ]
+cbind(gp@anno$ftr, rowSums(gp@counts))
+```
+
+Visualize PACs of this gene in individual conditions. Here the Y-axis is read count, the scale of which is different among conditions.DE PACs identified by DESeq2 method with padj < padjThd are highlighted in dashed yellow lines.
+```{r fig.dim=c(7, 5), message=FALSE, warning=FALSE}
+movViz(object=DEPAC, gene=gene, txdb=gff, PACds=PACds, collapseConds=FALSE, 
+       padjThd=0.01, showRatio=FALSE, showAllPA=TRUE) 
+```
+
+We can also show condition pairs in individual tracks and only display and/or highlight given condition pairs. If padjThd is given, then the DE PACs (padj < padjThd) will be highlighted (dashed yellow line). 
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=DEPAC, gene=gene, txdb=gff, PACds=PACds, collapseConds=TRUE, 
+       padjThd=0.01, showPV=TRUE, showAllPA=FALSE, showRatio=F,
+       conds=DEPAC@conds[c(1,3), ], highlightConds=DEPAC@conds[c(3), ])
+```
+
+# 3'UTR switching
+APA dynamics (i.e., APA site switching or 3'UTR lengthening/shortening) of a gene can be deduced by comparing the ratios of expression levels of one poly(A) site (e.g., the short isoform) over the other poly(A) site (e.g., the long isoform) between two biological samples. For unity, here we refer 3'UTR lengthening/shortening to 3'UTR switching, and refer APA dynamics involving a pair of PACs to APA site switching. Function *movUTRtrend* is used to identify 3'UTR switching events between samples. We developed three methods in movUTRtrend for detecting 3'UTR switching events from samples with or without replicates: (i) the strategy based on the chi-squared test for trend in proportions ("linearTrend"); (ii) the strategy based on DE PACs from DESeq2 ("DE"); (iii) the strategy based on DE PACs from DEXSeq ("DEX"). 
+
+## Detect 3'UTR switching events
+First, we used the 'linearTrend' method to detect 3'UTR switching events. Only PACs and genes with average read count between the two conditions >=10 and >=20 are used.
+```{r message=FALSE}
+utr=movUTRtrend(PACds, group='group', method='linearTrend', 
+                avgPACtag=10, avgGeneTag=20)
+## Number of genes for analyzing, including those not significant.
+lapply(utr@fullList, nrow)
+head(utr@fullList[["anther.embryo"]], n=2)
+```
+
+Make statistics of the results; genes with padj<0.1 and abs(cor)>0 are considered as 3'UTR switching.
+```{r}
+stat=movStat(object=utr, padjThd=0.1, valueThd=0)
+stat$nsig
+```
+
+Output 3'UTR switching results for a pair of conditions.
+```{r eval=FALSE}
+## Only output gene ids.
+out=movSelect(aMovRes=utr, condpair='anther.embryo', 
+              padjThd=0.1, valueThd=0, out='gene')
+## Output PAC ids.
+out=movSelect(aMovRes=utr, condpair='anther.maturePollen', 
+              padjThd=0.1, valueThd=0, out='pa')
+## Output gene ids with padj and value.
+out=movSelect(aMovRes=utr, condpair='anther.embryo', 
+              padjThd=0.1, valueThd=0, out='pv')
+## Output full information with expression levels, 3UTR length, 
+## read counts of each PA in each sample, etc.
+out=movSelect(aMovRes=utr, condpair='anther.embryo', 
+              padjThd=0.1, valueThd=0, out='full')
+## Output full information for 3UTR lengthening genes from anther to embryo (change=1).
+out=movSelect(aMovRes=utr, condpair='anther.embryo', 
+              padjThd=0.1, upThd=0, out='full')
+```
+```{r}
+## Output full information for 3UTR shortening genes from anther to embryo (change=-1).
+out=movSelect(aMovRes=utr, condpair='anther.embryo', 
+              padjThd=0.1, dnThd=0, out='full')
+head(out, n=2)
+```
+
+
+Here is another example of using DEX method to detect 3'UTR switching events.
+First get DE PAC results by DEXseq and then get 3'UTR switching events.
+```{r results='hide', message=FALSE}
+DEXPAC=movDEPAC(PACds, method='DEXseq', group='group', minSumPAT=10)
+swDEX=movUTRtrend(PACds, group='group', method='DEX',
+                   avgPACtag=10, avgGeneTag=20,
+                   aMovDEPACRes=DEXPAC, DEPAC.padjThd=0.01,
+                   mindist=50, fisherThd=0.01, logFCThd=1, selectOne='farest')
+```
+
+Get 3'UTR switching genes with padj<0.1 and |log2FC|>=1.
+```{r message=FALSE}
+stat=movStat(object=swDEX, padjThd=0.01, valueThd=1)
+stat$nsig
+
+out=movSelect(aMovRes=swDEX, condpair='anther.embryo', 
+              padjThd=0.01, valueThd=1, out='full')
+head(out, n=2)
+```
+
+## Statistics of 3'UTR switching results
+Here we used three methods to call 3'UTR switching and then compared the results from these methods.
+```{r results='hide'}
+swLinear=movUTRtrend(PACds, group='group',method='linearTrend',
+                     avgPACtag=10, avgGeneTag=20)
+swDEX=movUTRtrend(PACds, group='group', method='DEX',
+                 avgPACtag=10, avgGeneTag=20,
+                 aMovDEPACRes=DEXPAC, DEPAC.padjThd=0.01,
+                 mindist=50, fisherThd=0.01, logFCThd=1, selectOne='fisherPV')
+
+swDE=movUTRtrend(PACds, group='group', method='DE',
+                  avgPACtag=10, avgGeneTag=20,
+                  aMovDEPACRes=DEPAC, DEPAC.padjThd=0.01,
+                  mindist=50, fisherThd=0.01, logFCThd=1, selectOne='fisherPV')
+```
+
+Get significant 3'UTR switching events.
+```{r results='hide'}
+stat1=movStat(object=swLinear, padjThd=0.1, valueThd=0)
+stat2=movStat(object=swDEX, padjThd=0.01, valueThd=1)
+stat3=movStat(object=swDE, padjThd=0.01, valueThd=1)
+```
+
+Count number of  3'UTR switching events by different methods
+```{r fig.dim=c(6, 4)}
+nsig=as.data.frame(cbind(stat1$nsig, stat2$nsig, stat3$nsig))
+colnames(nsig)=c('LinearTrend','DE-DEXseq','DE-DESeq')
+nsig$tissueA.tissueB=rownames(nsig)
+nsig
+nsig=melt(nsig, variable.name='Method')
+ggplot(data=nsig, aes(x=tissueA.tissueB, y=value, fill=Method)) + 
+  geom_bar(stat="identity", position=position_dodge()) + 
+  ylab("3\'UTR switching events #") + theme_bw()
+
+```
+
+## Visualize 3'UTR switching events
+Gene Os02g0759700 is identified as 3'UTR switching. This gene has one PAC in CDS and two PACs in 3UTR; the 3UTR switching happens between anther~embryo and between embryo~maturePollen.
+```{r}
+gene='Os02g0759700'
+gp=PACds[PACds@anno$gene==gene, ]
+cbind(gp@anno$ftr, rowSums(gp@counts))
+```
+Plot all PACs of this gene in all conditions and replicates. Highlight PACs involving in the switching analysis in orange.
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=swDE, gene=gene, txdb=NULL, PACds=PACds, showRatio=TRUE, 
+       padjThd=0.01, showAllPA=TRUE)
+```
+
+Show in each track a condition pair and use line to link PACs to show the trend. There is 3'UTR switching between anther and maturePollen, and embryo and maturePollen. Highlight specific condition pair with blue background and only show PACs involving the switching analysis with a dashed line in orange.
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=swDE, gene=gene, txdb=gff, PACds=PACds, collapseConds=TRUE,
+       conds=swDE@conds, highlightConds=swDE@conds[c(1,3), ], showRatio=TRUE,
+       linkPAs=TRUE, padjThd=0.01, showAllPA=FALSE, showPV=TRUE)
+```
+
+Show only the condition pair anther~embryo and only PACs involving the 3UTR switching.
+Do not show gene model but only the genomic region of PACs, and show all PACs but hightlight the switching PACs in dashed yellow line. Show only switching PACs. 
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=swDE, gene=gene, txdb=NULL, PACds=PACds, collapseConds=TRUE,
+       conds=swDE@conds[1, ], highlightConds=NULL, showRatio=TRUE, linkPAs=TRUE,
+       padjThd=0.01, showAllPA=FALSE, showPV=FALSE)
+```
+
+This example shows using heatmaps for DEPAC results. First call the differential analysis and then call *movStat* to stat the results.
+```{r message=FALSE}
+stat=movStat(object=swDE, padjThd=0.01, valueThd=1)
+stat$nsig
+```
+
+Output stat results into files. The pdf file stores the plots about the number of significant events and the overlap among different condition pairs.
+```{r eval=FALSE}
+outputHeatStat(heatStats=stat, ostatfile='3UTR_switching_DE.stat',
+               plotPre='3UTR_switching_DE', show_rownames = TRUE)
+```
+To plot heatmap mannually, first convert the *movRes* object to a heatmap object and then filter switching genes.
+```{r}
+heat=movRes2heatmapResults(swDE)
+heatUp=subsetHeatmap(heat, padjThd=0.05, valueThd=1)
+```
+From the heatmap, we can see gene Os06g0682633 is shorter from anther to embryo (value=-8) and longer from embryo to maturePollen (value=7).
+```{r fig.dim=c(6, 6)}
+plotHeatmap(heatUp@value, show_rownames=TRUE, plotPre=NULL, cluster_rows=TRUE) 
+```
+
+Get the switching information for this gene.
+```{r}
+fl=swDE@fullList$anther.embryo
+fl[fl$gene=='Os06g0682633',]
+```
+
+
+# APA site switching
+The function *movAPAswitch* is used to detect both canonical and non-canonical APA site switching events. The strategy of *movAPAswitch* is similar to the strategy based on DE PACs in *movUTRtrend* but with higher flexibility. If a gene has more than two PACs, then each pair of PACs (denoted as PA1 and PA2) are analyzed. The following criteria are used to determine a APA switching event: whether PA1 or PA2 are DE; average read count for both sites; distance between PA1 and PA2; average read count for a gene; relative change of PA1 and PA2 (RC); read count ratio (PA1:PA2) >1 in one sample and <1 in another sample; p-value of the Fisher' s exact test for PA1 and PA2 read counts between samples. Pairs of PACs that meet user specified conditions are considered as APA site switching events. Users can use the *movSelect* function to filter 3' UTR switching events or APA site switching events with higher flexibility.
+
+## Detect 3'UTR-PAC switching
+First get DE PAC results by DEXseq.
+```{r eval=FALSE}
+DEXPAC=movDEPAC(PACds, method='DEXseq', group='group', minSumPAT=10)
+```
+
+Then get 3'UTR switching genes, usig selectOne=NULL to detect all pairs of switching PACs.
+```{r message=FALSE, results='hide'}
+swDEX=movAPAswitch(PACds, group='group',aMovDEPACRes=DEXPAC,
+                   avgPACtag=5, avgGeneTag=10,
+                   only3UTR=TRUE,
+                   DEPAC.padjThd=0.1, nDEPAC=1,
+                   mindist=50, fisherThd=0.1, logFCThd=0.5, 
+                   cross=FALSE, selectOne=NULL)
+```
+
+Stat the switching results.
+```{r message=FALSE}
+stat=movStat(object=swDEX, padjThd=0.1, valueThd=1)
+stat$nsig
+```
+
+Output switching genes with full information for anther~embryo.
+```{r message=FALSE}
+sel=movSelect(aMovRes=swDEX, condpair='anther.embryo', 
+              padjThd=0.1, valueThd=1, out='full')
+head(sel, n=2)
+```
+
+## Detect APA-site switching
+Detect APA switching events involving non-3'UTR PACs, using selectOne=NULL to get all pairs of switching PACs.
+```{r message=FALSE, results='hide'}
+swDE=movAPAswitch(PACds, group='group', aMovDEPACRes=DEXPAC,
+                   avgPACtag=10, avgGeneTag=20,
+                   only3UTR=FALSE,
+                   DEPAC.padjThd=0.1, nDEPAC=1,
+                   mindist=50, fisherThd=0.1, logFCThd=0.5, 
+                  cross=FALSE, selectOne=NULL)
+```
+
+Stat the switching results.
+```{r message=FALSE}
+stat=movStat(object=swDE, padjThd=0.1, valueThd=1)
+stat$nsig
+```
+
+Output switching genes with full information for anther~embryo.
+```{r message=FALSE}
+sw=movSelect(aMovRes=swDE, condpair='anther.embryo', 
+             padjThd=0.01, valueThd=1, out='full')
+head(sw[order(sw$fisherPV), ], n=2)
+```
+
+
+## Subset PACds by switching genes or PACs
+First get list of genes or PACs of switching events, then subset PACds by genes or PACs.
+```{r message=FALSE}
+genes=movSelect(aMovRes=swDE, condpair='anther.embryo', 
+                padjThd=0.01, valueThd=1, out='gene')
+swPAC=subsetPACds(PACds, genes=genes, verbose=TRUE)
+table(swPAC@anno$ftr)
+
+PAs=movSelect(aMovRes=swDE, condpair='anther.embryo', padjThd=0.01,
+              valueThd=1, out='pa')
+swPAC=subsetPACds(PACds, PAs=PAs, verbose=TRUE)
+table(swPAC@anno$ftr)
+```
+
+## Visualization of APA-site switching
+Show one switching gene (Os05g0451900), where switching happens between a 3'UTR PAC and an intronic PAC. This gene has 2 PACs in intron and 1 PAC in 3UTR; the APA-site switching happens between anther~maturePollen.
+```{r}
+gene='Os05g0451900'
+gp=PACds[PACds@anno$gene==gene, ]
+cbind(gp@anno$ftr, rowSums(gp@counts))
+```
+
+Plot all PACs of this gene in all conditions and replicates. Highlight PACs involving in the switching analysis in orange.
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=swDE, gene=gene, txdb=gff, PACds=PACds, 
+       showRatio=TRUE, padjThd=0.01, showAllPA=TRUE)
+```
+
+Show in each track a condition pair and use line to link PACs to show the trend.
+Highlight specific condition pair with blue background and only show PACs involving the switching analysis with a dashed line in orange.
+There is APA-site switching between anther and maturePollen.
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=swDE, gene=gene, txdb=gff, PACds=PACds, collapseConds=TRUE,
+       conds=swDE@conds, highlightConds=swDE@conds[c(2,3), ], showRatio=TRUE,
+       linkPAs=TRUE, padjThd=0.01, showAllPA=FALSE)
+```
+
+# Session Information
+The session information records the versions of all the packages used in the generation of the present document.
+```{r}
+sessionInfo()
+```
+
+# References{#refer}
+<span id="1">[1] Fu, H., Yang, D., Su, W., et al. Genome-wide dynamics of alternative polyadenylation in rice. Genome Res. 2016;26(12):1753-1760.</span>
+
+<span id="2">[2] Zhu, S., Ye, W., Ye, L., et al. PlantAPAdb: A Comprehensive Database for Alternative Polyadenylation Sites in Plants. Plant Physiol. 2020;182(1):228-242.</span>
+
+<span id="3">[3] Anders, S. and Huber, W. Differential expression analysis for sequence count data. Genome Biol. 2010;11(10):2010-2011.</span>
+
+<span id="4">[4] Robinson, M.D., McCarthy, D.J. and Smyth, G.K. edgeR: a Bioconductor package for differential expression analysis of digital gene expression data. Bioinformatics 2010;26(1):139-140.</span>
+
+<span id="5">[5] Ji, Z., Lee, J.Y., Pan, Z., et al. Progressive lengthening of 3' untranslated regions of mRNAs by alternative polyadenylation during mouse embryonic development. Proc. Natl. Acad. Sci. USA 2009;106(17):7028-7033.
+</span>
+
+<span id="6">[6] Ulitsky, I., Shkumatava, A., Jan, C.H., et al. Extensive alternative polyadenylation during zebrafish development. Genome Res. 2012;22(10):2054-2066.
+</span>
+
+<span id="7">[7] Begik, O., Oyken, M., Cinkilli Alican, T., et al. Alternative Polyadenylation Patterns for Novel Gene Discovery and Classification in Cancer. Neoplasia 2017;19(7):574-582.</span>
+
+<span id="8">[8] Shulman, E.D. and Elkon, R. Cell-type-specific analysis of alternative polyadenylation using single-cell transcriptomics data. Nucleic Acids Res 2019;47(19):10027-10039.</span>
+
+<span id="9">[9] Lianoglou, S., Garg, V., Yang, J.L., et al. Ubiquitously transcribed genes use alternative polyadenylation to achieve tissue-specific expression. Genes Dev. 2013;27(21):2380-2396.</span>
+
+
