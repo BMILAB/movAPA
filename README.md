@@ -16,7 +16,11 @@ The movAPA package consists of seven main modules (__Figure 1__).
 
 (4) Sequences surrounding poly(A) sites can be extracted and poly(A) signals of specific regions can be identified. 
 
-(5) Three metrics can be adopted for the quantification of the usage of each poly(A) site across samples and four metrics are used for the quantification of dynamic APA site usage of a gene. (6) APA dynamics across biological samples can be profiled, including the detection of differentially expressed poly(A) sites and genes, 3′ UTR lengthening/shortening events, and canonical or non-canonical APA site switching events. (7) Rich functions are provided for the visualization of poly(A) site distributions and dynamic APA site usages across selected biological samples or single cells. 
+(5) Three metrics can be adopted for the quantification of the usage of each poly(A) site across samples and four metrics are used for the quantification of dynamic APA site usage of a gene. 
+
+(6) APA dynamics across biological samples can be profiled, including the detection of differentially expressed poly(A) sites and genes, 3′ UTR lengthening/shortening events, and canonical or non-canonical APA site switching events. 
+
+(7) Rich functions are provided for the visualization of poly(A) site distributions and dynamic APA site usages across selected biological samples or single cells. 
 
 <img src="img/schema.png" width="100%" />
 
