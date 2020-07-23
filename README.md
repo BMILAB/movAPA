@@ -6,6 +6,8 @@ Alternative polyadenylation (APA) has been widely recognized as a widespread mec
 
 The movAPA package consists of seven main modules (__Figure 1__).
 
+<img src="img/schema.png" width="100%" />
+
 (1) Poly(A) sites of biological samples obtained from 3’ seq or RNA-seq are stored in the PACdataset object and further preprocessed for the removal of internal priming artifacts and normalization.
 
 (2) The genome annotation file in __GFF3/GTF__ format is processed, then poly(A) sites are annotated with rich information such as gene id, gene type, and genomic regions. 
@@ -20,7 +22,6 @@ The movAPA package consists of seven main modules (__Figure 1__).
 
 (7) Rich functions are provided for the visualization of poly(A) site distributions and dynamic APA site usages across selected biological samples or single cells. 
 
-<img src="img/schema.png" width="100%" />
 
 ## Getting started
 ### Mandatory
@@ -46,10 +47,15 @@ install.packages("you download path", repos = NULL, type = "source")
 * Dynamics of APA across rice tissues
 In this case study, we investigated the application of movAPA on a poly(A) site dataset of multiple tissues in Oryza sativa japonica from 3’ end sequencing. 
 Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_rice_tissues.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_rice_tissues.html)) for full details.
-
+```
+## Then you also can view pdf using the following commands on the R console
+vignette("movAPA_on_rice_tissues",package = "movAPA")
+```
 * Dynamics of APA in mouse sperm cells
 movAPA is highly scalable and flexible, which can be used for profiling APA dynamics in single cells. Here we investigated the application of movAPA on poly(A) sites from mouse sperm cells. Poly(A) sites from three stages of differentiation process were obtained from the previous study (Shulman and Elkon, 2019), including early stage (spermatocytes, SC), intermediate stage (round spermatids, RS), and late stage (elongating spermatids, ES).
 Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_mouse_sperm_cells.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_mouse_sperm_cells.html)) for full details.
-
+```
+vignette("movAPA_on_mouse_sperm_cells.html",package = "movAPA")
+```
 ## Citation
 If you are using movAPA, please cite: Wenbin Ye#, Tao Liu#, Hongjuan Fu, Congting Ye, Guoli Ji*, and Xiaohui Wu*: movAPA: Modeling and visualization of dynamics of alternative polyadenylation across biological samples (to be submitted).
