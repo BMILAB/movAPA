@@ -28,9 +28,9 @@
 #' @export
 movVizSC <- function(scPACds, gene, cellGroupName, cellGroupColors=NULL, txdb = NULL, PAwidth = 50, showRatio = FALSE){
 
-  if (!require('millefy', quietly = TRUE, warn.conflicts = FALSE)) {
-    stop("R package millefy is not installed!")
-  }
+  # if (!require('millefy', quietly = TRUE, warn.conflicts = FALSE)) {
+  #   stop("R package millefy is not installed!")
+  # }
 
   print(sprintf("Begin Plot: %s", Sys.time()))
 

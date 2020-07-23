@@ -4,9 +4,9 @@
 \name{movAPA-package}
 \alias{movAPA}
 \alias{movAPA-package}
-\title{movAPA: movAPA: Modeling and Visualization of dynamics of Alternative PolyAdenylation}
+\title{movAPA: movAPA: Modeling and Visualization of Dynamics of Alternative PolyAdenylation}
 \description{
-This package provides functions for modeling and visualization of dynamics of alternative polyadenylation across different experimental conditions.
+This package provides functions for modeling and visualization of dynamics of alternative polyadenylation across biological samples.
 }
 \details{
 The movAPA package is a comprehensive package for MOdeling and Visualization of dynamics of Alternative PolyAdenylation across biological samples in different species.
