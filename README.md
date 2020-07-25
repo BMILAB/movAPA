@@ -46,7 +46,8 @@ install.packages("you download path", repos = NULL, type = "source")
 ## Application examples
 ### Dynamics of APA across rice tissues
 In this case study, we investigated the application of movAPA on a poly(A) site dataset of multiple tissues in Oryza sativa japonica from 3’ end sequencing. 
-Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_rice_tissues.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_rice_tissues.html)) for full details.
+Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_rice_tissues.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_rice_tissues.html)) for full details. 
+The data in the vignette can be downloaded from the __refer__ branch-demo_data
 ```
 ## You can also browse the vignette using the following commands on the R console
 vignette("movAPA_on_rice_tissues",package = "movAPA")
