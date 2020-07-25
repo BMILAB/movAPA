@@ -6,7 +6,7 @@ Alternative polyadenylation (APA) has been widely recognized as a widespread mec
 
 * The movAPA package consists of seven main modules.
 
-<img src="img/Schema.png" width="100%" />
+<img src="img/schema.png" width="100%" />
 
 (1) Poly(A) sites of biological samples obtained from 3’ seq or RNA-seq are stored in the PACdataset object and further preprocessed for the removal of internal priming artifacts and normalization.
 
