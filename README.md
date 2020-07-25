@@ -6,6 +6,7 @@ Alternative polyadenylation (APA) has been widely recognized as a widespread mec
 
 * The movAPA package consists of seven main modules.
 
+
 <img src="img/Schema.png" width="100%" />
 
 
