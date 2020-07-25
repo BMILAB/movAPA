@@ -1,5 +1,5 @@
 # movAPA
-Modeling and visualization of dynamics of alternative polyadenylation across biological samples
+__Mo__deling and visualization of dynamics of __a__lternative __p__oly__a__denylation across biological samples
 
 ## About
 Alternative polyadenylation (APA) has been widely recognized as a widespread mechanism modulated dynamically. Studies based on 3′ end sequencing and/or RNA-seq have profiled poly(A) sites in various species with diverse pipelines, yet no unified and easy-to-use toolkit is available for comprehensive APA analyses. We developed an R package called __movAPA__ for modeling and visualization of dynamics of alternative polyadenylation across biological samples. movAPA incorporates rich functions for preprocessing, annotation, and statistical analyses of poly(A) sites, identification of poly(A) signals, profiling of APA dynamics, and visualization. Particularly, seven metrics are provided for measuring the tissue-specificity or usages of APA sites across samples. Three methods are used for identifying 3′ UTR shortening/lengthening events between conditions. APA site switching involving non-3′ UTR polyadenylation can also be explored. Using poly(A) site data from rice and mouse sperm cells, we demonstrated the high scalability and flexibility of movAPA in profiling APA dynamics across tissues and single cells.
@@ -44,18 +44,19 @@ install.packages("you download path", repos = NULL, type = "source")
 ```
 
 ## Application examples
-* Dynamics of APA across rice tissues
+### Dynamics of APA across rice tissues
 In this case study, we investigated the application of movAPA on a poly(A) site dataset of multiple tissues in Oryza sativa japonica from 3’ end sequencing. 
 Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_rice_tissues.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_rice_tissues.html)) for full details.
 ```
-## Then you also can view pdf using the following commands on the R console
+## You can also browse the vignette using the following commands on the R console
 vignette("movAPA_on_rice_tissues",package = "movAPA")
 ```
-* Dynamics of APA in mouse sperm cells
+### Dynamics of APA in mouse sperm cells
 movAPA is highly scalable and flexible, which can be used for profiling APA dynamics in single cells. Here we investigated the application of movAPA on poly(A) sites from mouse sperm cells. Poly(A) sites from three stages of differentiation process were obtained from the previous study (Shulman and Elkon, 2019), including early stage (spermatocytes, SC), intermediate stage (round spermatids, RS), and late stage (elongating spermatids, ES).
 Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_mouse_sperm_cells.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_mouse_sperm_cells.html)) for full details.
 ```
+## You can also browse the vignette using the following commands on the R console
 vignette("movAPA_on_mouse_sperm_cells",package = "movAPA")
 ```
 ## Citation
-If you are using movAPA, please cite: Wenbin Ye#, Tao Liu#, Hongjuan Fu, Congting Ye, Guoli Ji*, and Xiaohui Wu*: movAPA: Modeling and visualization of dynamics of alternative polyadenylation across biological samples (to be submitted).
+If you are using movAPA, please cite: Wenbin Ye#, Tao Liu#, Hongjuan Fu, Congting Ye, Guoli Ji*, and Xiaohui Wu*: movAPA: Modeling and visualization of dynamics of alternative polyadenylation across biological samples (under review).
