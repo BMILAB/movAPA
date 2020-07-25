@@ -1,5 +1,5 @@
 # movAPA
-__Mo__deling and visualization of dynamics of alternative polyadenylation across biological samples
+__Mo__ deling and visualization of dynamics of alternative polyadenylation across biological samples
 
 ## About
 Alternative polyadenylation (APA) has been widely recognized as a widespread mechanism modulated dynamically. Studies based on 3′ end sequencing and/or RNA-seq have profiled poly(A) sites in various species with diverse pipelines, yet no unified and easy-to-use toolkit is available for comprehensive APA analyses. We developed an R package called __movAPA__ for modeling and visualization of dynamics of alternative polyadenylation across biological samples. movAPA incorporates rich functions for preprocessing, annotation, and statistical analyses of poly(A) sites, identification of poly(A) signals, profiling of APA dynamics, and visualization. Particularly, seven metrics are provided for measuring the tissue-specificity or usages of APA sites across samples. Three methods are used for identifying 3′ UTR shortening/lengthening events between conditions. APA site switching involving non-3′ UTR polyadenylation can also be explored. Using poly(A) site data from rice and mouse sperm cells, we demonstrated the high scalability and flexibility of movAPA in profiling APA dynamics across tissues and single cells.
