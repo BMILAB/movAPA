@@ -54,7 +54,7 @@ vignette("movAPA_on_rice_tissues",package = "movAPA")
 ```
 ### Dynamics of APA in mouse sperm cells
 movAPA is highly scalable and flexible, which can be used for profiling APA dynamics in single cells. Here we investigated the application of movAPA on poly(A) sites from mouse sperm cells. Poly(A) sites from three stages of differentiation process were obtained from the previous study (Shulman and Elkon, 2019), including early stage (spermatocytes, SC), intermediate stage (round spermatids, RS), and late stage (elongating spermatids, ES).
-Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_mouse_sperm_cells.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_mouse_sperm_cells.html)) for full details.
+Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_mouse_sperm_cells.pdf), [HTML]( https://bmilab.github.io/movAPA/vignettes/movAPA_on_mouse_sperm_cells.html)) for full details.
 ```
 ## You can also browse the vignette using the following command on the R console
 vignette("movAPA_on_mouse_sperm_cells",package = "movAPA")
