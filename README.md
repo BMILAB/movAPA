@@ -8,19 +8,19 @@ Alternative polyadenylation (APA) has been widely recognized as a widespread mec
 
 <img src="img/schema.png" width="100%" />
 
-A Poly(A) sites of biological samples obtained from 3’ seq or RNA-seq are stored in the PACdataset object and further preprocessed for the removal of internal priming artifacts and normalization.
+A. Poly(A) sites of biological samples obtained from 3’ seq or RNA-seq are stored in the PACdataset object and further preprocessed for the removal of internal priming artifacts and normalization.
 
-B The genome annotation file in GFF3/GTF format is processed, then poly(A) sites are annotated with rich information such as gene id, gene type, and genomic regions. 
+B. The genome annotation file in GFF3/GTF format is processed, then poly(A) sites are annotated with rich information such as gene id, gene type, and genomic regions. 
 
-C Statistical analyses can be conducted to profile the global landscape of poly(A) site distributions and count the overlap with other poly(A) site datasets. 
+C. Statistical analyses can be conducted to profile the global landscape of poly(A) site distributions and count the overlap with other poly(A) site datasets. 
 
-D Sequences surrounding poly(A) sites can be extracted and poly(A) signals of specific regions can be identified. 
+D. Sequences surrounding poly(A) sites can be extracted and poly(A) signals of specific regions can be identified. 
 
-E Three metrics can be adopted for the quantification of the usage of each poly(A) site across samples and four metrics are used for the quantification of dynamic APA site usage of a gene. 
+E. Three metrics can be adopted for the quantification of the usage of each poly(A) site across samples and four metrics are used for the quantification of dynamic APA site usage of a gene. 
 
-F APA dynamics across biological samples can be profiled, including the detection of differentially expressed poly(A) sites and genes, 3′ UTR lengthening/shortening events, and canonical or non-canonical APA site switching events. 
+F. APA dynamics across biological samples can be profiled, including the detection of differentially expressed poly(A) sites and genes, 3′ UTR lengthening/shortening events, and canonical or non-canonical APA site switching events. 
 
-G Rich functions are provided for the visualization of poly(A) site distributions and dynamic APA site usages across selected biological samples or single cells. 
+G. Rich functions are provided for the visualization of poly(A) site distributions and dynamic APA site usages across selected biological samples or single cells. 
 
 
 ## Getting started
@@ -45,7 +45,7 @@ install.packages("you download path", repos = NULL, type = "source")
 
 ## Application examples
 ### Dynamics of APA across rice tissues
-In this case study, we investigated the application of movAPA on a poly(A) site dataset of multiple tissues in Oryza sativa japonica from 3’ end sequencing. 
+In this case study, we investigated the application of movAPA on a poly(A) site dataset of multiple tissues in _Oryza sativa japonica_ from 3’ end sequencing. 
 Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_rice_tissues.pdf), [HTML](https://github.com/BMILAB/movAPA/blob/master/vignettes/movAPA_on_rice_tissues.html)) for full details. 
 The data in the vignette can be downloaded from the __refer__ branch-"[demo_data](https://github.com/BMILAB/movAPA/tree/refer)".
 ```
