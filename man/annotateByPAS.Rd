@@ -41,7 +41,6 @@ This function is used to get polyA signals around PACs and calculates the min di
 }
 \examples{
 ## First load the reference genome sequences that are already represented as a BSgenome object.
-devtools::load_all("BSgenome.Oryza.ENSEMBL.IRGSP1")
 library("BSgenome.Oryza.ENSEMBL.IRGSP1")
 bsgenome <- BSgenome.Oryza.ENSEMBL.IRGSP1
 data(PACds); pacds=PACds

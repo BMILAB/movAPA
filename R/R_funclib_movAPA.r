@@ -1280,7 +1280,7 @@ plotPACdsStat <- function(pstats, pdfFile=NULL, minPAT=NULL, conds=NULL, ...) {
   d$singlePA=d$nGene-d$nAPAgene
   d$APA=d$nAPAgene
   d$nAPAgene=NULL; d$nGene=NULL
-  d=melt(d, id.vars = c('cond','minPAT','APAextent'), value.name = 'nGene', variable.name = 'gene')
+  d=reshape2::melt(d, id.vars = c('cond','minPAT','APAextent'), value.name = 'nGene', variable.name = 'gene')
   d$APAextent=sprintf("%.0f%%", 100*d$APAextent)
   d[d$gene=='singlePA','APAextent']=NA
   p=ggplot(data=subset(d),  aes(x=cond, y=nGene, fill=gene)) +
@@ -1294,7 +1294,7 @@ plotPACdsStat <- function(pstats, pdfFile=NULL, minPAT=NULL, conds=NULL, ...) {
   #PAC distribution
   d=pstat[, c('cond','minPAT', colnames(pstat)[grep('_nPAC', colnames(pstat))])]
   colnames(d)=gsub('_nPAC','',colnames(d))
-  d=melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAC', variable.name = 'region')
+  d=reshape2::melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAC', variable.name = 'region')
   p=ggplot(d, aes(x = region, y=nPAC, fill=cond)) + geom_bar(stat="identity", position=position_dodge()) +
     ylab('Number of PACs')+ xlab('Region') + ggtitle("PAC# distribution")  +
     stat_plot_theme +
@@ -1307,7 +1307,7 @@ plotPACdsStat <- function(pstats, pdfFile=NULL, minPAT=NULL, conds=NULL, ...) {
   d=pstat[, c('cond','minPAT', colnames(pstat)[grep('_nPAC', colnames(pstat))])]
   d[,-c(1:2)]=d[,-c(1:2), drop=F]/rowSums(d[,-c(1:2), drop=F])
   colnames(d)=gsub('_nPAC','',colnames(d))
-  d=melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAC', variable.name = 'region')
+  d=reshape2::melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAC', variable.name = 'region')
   p=ggplot(d, aes(x = region, y=nPAC, fill=cond)) + geom_bar(stat="identity", position=position_dodge()) +
     ylab('PACs%')+ xlab('Region') + ggtitle("PAC% distribution")  +
     stat_plot_theme +
@@ -1319,7 +1319,7 @@ plotPACdsStat <- function(pstats, pdfFile=NULL, minPAT=NULL, conds=NULL, ...) {
   #PAT distribution
   d=pstat[, c('cond','minPAT', colnames(pstat)[grep('_nPAT', colnames(pstat))])]
   colnames(d)=gsub('_nPAT','',colnames(d))
-  d=melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAT', variable.name = 'region')
+  d=reshape2::melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAT', variable.name = 'region')
   p=ggplot(d, aes(x = region, y=nPAT, fill=cond)) + geom_bar(stat="identity", position=position_dodge()) +
     ylab('Number of PATs')+ xlab('Region') + ggtitle("PAT distribution")  +
     stat_plot_theme +
@@ -1332,7 +1332,7 @@ plotPACdsStat <- function(pstats, pdfFile=NULL, minPAT=NULL, conds=NULL, ...) {
   d=pstat[, c('cond','minPAT', colnames(pstat)[grep('_nPAT', colnames(pstat))])]
   d[,-c(1:2)]=d[,-c(1:2), drop=F]/rowSums(d[,-c(1:2), drop=F])
   colnames(d)=gsub('_nPAT','',colnames(d))
-  d=melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAT', variable.name = 'region')
+  d=reshape2::melt(d, id.vars = c('cond','minPAT'), value.name = 'nPAT', variable.name = 'region')
   p=ggplot(d, aes(x = region, y=nPAT, fill=cond)) + geom_bar(stat="identity", position=position_dodge()) +
     ylab('PATs%')+ xlab('Region') + ggtitle("PAT distribution (%)")  +
     stat_plot_theme +
@@ -1834,7 +1834,7 @@ get3UTRAPAds<-function(pacds, sortPA=TRUE, choose2PA=NULL, avgPACtag=0, avgGeneT
 # will not order PACds
 is3UTRAPAds<-function(pacds) {
   if (nrow(pacds@anno)==0) return(FALSE)
-  if (length(which(pacds@anno$ftr!='3UTR'))>0) return(FALSE)
+  if (sum(pacds@anno$ftr!='3UTR')>0) return(FALSE)
   if (!('toStop' %in% colnames(pacds@anno))) return(FALSE)
   if (min(table(pacds@anno$gene))<=1) return(FALSE) #not APA
   return(TRUE)
@@ -1866,7 +1866,7 @@ geneStatForPACds<-function(pacds, avgUTRlen=TRUE, geneTag=TRUE, PAinfo=TRUE, ftr
 
   if (avgUTRlen) {
 
-    if (is3UTRAPAds(pacds) == "FALSE") {
+    if (!is3UTRAPAds(pacds)) {
       stop("avgUTRlen=TRUE, but pacds is non-3UTR-APA dataset\n")
     }
 
@@ -2076,6 +2076,7 @@ mergePACds_old <- function (PACdsList, d=24) {
 
   #cat('Calculating nPA, PACtag (slow) ...\n')
   smpcols=colnames(allpa)[!(colnames(allpa) %in% c('chr','strand','coord'))]
+
   if (length(smpcols)>1) {
     tottag=rowSums(allpa[,smpcols])
   } else {
@@ -2224,7 +2225,7 @@ mergePACds <- function (PACdsList, d=24) {
 
   #sum tag per interval
   cat('count tot tag for each sample within each PAC\n')
-  allpa$tottag=rowSums(allpa[,smpcols])
+  allpa$tottag=rowSums(allpa[, smpcols, drop=F])
   byItv <- dplyr::group_by(allpa, subjectHits)
   dots <- sapply(smpcols ,function(x) substitute(sum(x), list(x=as.name(x))))
   dots[['tottag']]=substitute(sum(x),list(x=as.name('tottag')))
@@ -2238,8 +2239,9 @@ mergePACds <- function (PACdsList, d=24) {
 
   #pacds
   smpcols=smpcols[smpcols!='tottag']
-  counts=pac[,smpcols]
+  counts=pac[, smpcols, drop=F]
   anno=pac[,c('chr','strand','coord','tottag','UPA_start','UPA_end','nPA','maxtag')]
+
   colData=as.data.frame(matrix(unlist(lapply(PACdsList, function(ds) return(as.character(ds@colData[,1])))),
                                ncol=1, dimnames = list(colnames(counts),'group')))
   d=new("PACdataset",counts=counts, colData=colData, anno=anno)
@@ -2707,7 +2709,6 @@ getVarGrams<-function(grams) {
 #' For example, given * is the PAC, then ...AATAAA*, dist=6; ...*AATAAA, dist=1.
 #' @examples
 #' ## First load the reference genome sequences that are already represented as a BSgenome object.
-#' devtools::load_all("BSgenome.Oryza.ENSEMBL.IRGSP1")
 #' library("BSgenome.Oryza.ENSEMBL.IRGSP1")
 #' bsgenome <- BSgenome.Oryza.ENSEMBL.IRGSP1
 #' data(PACds); pacds=PACds
@@ -4546,8 +4547,6 @@ UTRtrend_linear<-function(PACds, group, cond1, cond2, avgPACtag=5, avgGeneTag=10
 getAllSwitchingPairsForOneGene<-function (genePAs, mindist=50, nDEPAC=1, pseudo=1,
                                           fisherThd=0.01, logFCThd=1, cross=FALSE,
                                           selectOne=NULL) { #c('farest','logFC','fisherPV')
-  genePAs$gene <- as.character(genePAs$gene)
-  genePAs$PA = as.character(genePAs$PA)
   genePAs[,1:2]=genePAs[,1:2]+pseudo
   ocols=c('gene','PA1','PA2','dist','nDEPA','nSwitchPair','logFC','fisherPV','change')
   opair=matrix(nrow=0,ncol=length(ocols))
@@ -4556,7 +4555,6 @@ getAllSwitchingPairsForOneGene<-function (genePAs, mindist=50, nDEPAC=1, pseudo=
   opair$gene = as.character(opair$gene)
   opair$PA1 = as.character(opair$PA1)
   opair$PA2 = as.character(opair$PA2)
-
   if (nrow(genePAs)<=1) {
     return(opair)
   }
@@ -6100,7 +6098,7 @@ outputHeatStat <- function (heatStats, ostatfile, plotPre, show_rownames=FALSE) 
   plotfile=paste0(plotPre,'.plots.pdf')
   pdf(plotfile)
   heatStats$nsig$cond=rownames(heatStats$nsig)
-  pd=melt(heatStats$nsig, id='cond', variable.name = 'regulation', value.name = 'Number')
+  pd=reshape2::melt(heatStats$nsig, id='cond', variable.name = 'regulation', value.name = 'Number')
   #p=ggplot(pd, aes(x=cond, y=Number))  + geom_bar(stat="identity") + facet_grid(~regulation)
   p=ggplot(pd, aes(x=cond, y=Number))  + geom_bar(stat="identity") + stat_plot_theme
   print(p)
@@ -6541,7 +6539,7 @@ plotATCGforFAfile <- function (faFiles, ofreq=FALSE, opdf=TRUE, refPos=NULL, sta
         dmerge=rbind(dmerge, cbind(source=omain,din))
       }
     }
-    din <- melt(din,id.vars='pos',variable.name = 'base', value.name = 'freq')
+    din <- reshape2::melt(din,id.vars='pos',variable.name = 'base', value.name = 'freq')
     ATCGpicture<-ggplot(din,aes(x=din$pos,y=din$freq,colour=din$base)) + geom_line() +
       xlab("Position") + ylab('Base component') + theme(legend.title=element_blank()) + theme_bw() +
       ggtitle(omain)
@@ -6557,7 +6555,7 @@ plotATCGforFAfile <- function (faFiles, ofreq=FALSE, opdf=TRUE, refPos=NULL, sta
   }
 
   if (mergePlots) {
-    din <- melt(dmerge, id.vars=c('source','pos'), variable.name = 'base', value.name = 'freq')
+    din <- reshape2::melt(dmerge, id.vars=c('source','pos'), variable.name = 'base', value.name = 'freq')
     din$source=as.character(din$source)
     #if file name is too long, remove common chars
     #if no common chars, change the first 1-30 chars to ...
@@ -7816,7 +7814,7 @@ setMethod("movViz", signature="PACdataset", def=function(object, gene, txdb=NULL
     dtcond=PACds@counts
     #colnames(dtcond)=as.character(groups)
     dtcond=cbind(coord=PACds@anno$coord, dtcond)
-    dtcond=reshape2::melt(dtcond, id='coord', variable.name = 'reps', value.name = 'nPAT')
+    dtcond=melt(dtcond, id='coord', variable.name = 'reps', value.name = 'nPAT')
     coldata=cbind(reps=rownames(PACds@colData), group=groups)
     dtcond=merge(dtcond, coldata, by='reps')
 
