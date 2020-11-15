@@ -39,8 +39,8 @@ require(devtools)
 install_github("BMILAB/movAPA")
 library(movAPA)
 
-##or you can download ZIP, and then
-install.packages("you download path", repos = NULL, type = "source")
+##or you can download ZIP, and then unzip
+install.packages("you unzip file path", repos = NULL, type = "source")
 ```
 
 ## Application examples
