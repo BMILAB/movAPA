@@ -64,4 +64,4 @@ Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master
 vignette("movAPA_on_mouse_sperm_cells",package = "movAPA")
 ```
 ## Citation
-If you are using movAPA, please cite: Wenbin Ye#, Tao Liu#, Hongjuan Fu, Congting Ye, Guoli Ji*, and Xiaohui Wu*: movAPA: Modeling and visualization of dynamics of alternative polyadenylation across biological samples, Bioinformatics, 2020.
+If you are using movAPA, please cite: [Wenbin Ye#, Tao Liu#, Hongjuan Fu, Congting Ye, Guoli Ji*, and Xiaohui Wu*: movAPA: Modeling and visualization of dynamics of alternative polyadenylation across biological samples, Bioinformatics, 2020.](https://academic.oup.com/bioinformatics/advance-article-abstract/doi/10.1093/bioinformatics/btaa997/6015116)
