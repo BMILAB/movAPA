@@ -2,7 +2,7 @@
 #'
 #' movVizSC visualizes PACs of a gene in single cells.
 #'
-#' This function is useful for visualizing distributions of expression levels of PACs among single cells and cell types.
+#' This function is useful for visualizing distributions of expression levels of PACs among single cells and cell types. (Note: the code of this function was adapted from the Millefy R package [Ozaki, H., Hayashi, T., Umeda, M., et al. Millefy: visualizing cell-to-cell heterogeneity in read coverage of single-cell RNA sequencing datasets. BMC Genomics 2020;21(1):177. ])
 
 #' @usage movVizSC(scPACds, gene, cellGroupName, cellGroupColors=NULL, txdb = NULL, PAwidth = 50, showRatio = FALSE)
 #' @param movVizSC a PACdataset storing single cell PACs. The PACds@anno should have columns chr/strand/coord.
