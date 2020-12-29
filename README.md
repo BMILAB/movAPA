@@ -44,6 +44,10 @@ install.packages("you unzip file path", repos = NULL, type = "source")
 ```
 
 ## Application examples
+### Read a poly(A) site file with movAPA
+This documentation describes how to read an external file of poly(A) sites and analyze it with movAPA. We used the model species – Arabidopsis for demonstration.
+Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_data_input.pdf), [HTML]( https://bmilab.github.io/movAPA/vignettes/movAPA_data_input.html)) for full details. 
+
 ### Dynamics of APA across rice tissues
 In this case study, we investigated the application of movAPA on a poly(A) site dataset of multiple tissues in _Oryza sativa japonica_ from 3’ end sequencing. 
 Please refer to the vignette ([PDF](https://github.com/BMILAB/movAPA/blob/master/inst/doc/movAPA_on_rice_tissues.pdf), [HTML]( https://bmilab.github.io/movAPA/vignettes/movAPA_on_rice_tissues.html)) for full details. 
