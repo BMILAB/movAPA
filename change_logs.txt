@@ -6,4 +6,5 @@
 # Add function testExt3UTR, which can be used for determine ext3UTRlen parameter in ext3UTRPACds.
 # Add function buildRefPACdsAnno, and allow mergePACds to use refPACds for merging multiple samples.
 # Fix bugs about clearPAT parameter in some functions.
+# Add a new vignette "movAPA_on_scAPAtrap_results", which describes the use of movAPA on single-cell data.
   
