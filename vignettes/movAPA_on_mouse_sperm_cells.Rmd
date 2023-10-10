@@ -1,0 +1,457 @@
+---
+title: "Analyses of APA dynamics in mouse sperm cells with the movAPA package"
+author: "Xiaohui Wu, Wenbin Ye, Tao Liu, Hongjuan Fu"
+date: "Last modified 2023-10-10"
+output:
+  rmarkdown::pdf_document:
+    latex_engine: xelatex
+    toc:  true
+    toc_depth: 6
+    number_sections: true
+    fig_width: 5
+    fig_height: 4
+  rmarkdown::html_document: 
+    toc: yes
+urlcolor: blue
+fontsize: 11pt
+vignette: >
+  %\VignetteIndexEntry{movAPA_on_mouse_sperm_cells}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.height = 5.5,
+  collapse = TRUE,
+  warning = FALSE,
+  comment = "#>"
+)
+```
+
+# Overview
+
+Here we investigated the application of movAPA on poly(A) sites (or called poly(A) site clusters, PACs) from mouse sperm cells. Poly(A) sites from three stages of differentiation process were obtained from the previous study ([Shulman and Elkon, 2019](#1)), including early stage (spermatocytes, SC), intermediate stage (round spermatids, RS), and late stage (elongating spermatids, ES). We used a small dataset containing 3'UTR poly(A) sites from the chromosome 12 for demonstration.
+
+# Preparations
+
+## PAC data of mouse sperm cells
+
+movAPA is highly scalable and flexible in that the dataset of APA sites in single cells can be readily represented by the generic object of *PACdataset* where cells of the same cell type are regarded as replicates of a biological sample.
+
+The moveAPA package includes an example single cell PAC dataset stored as a *PACdataset* object, containing 771 PACs from 396 genes located in chromosome 12. There are total 2042 cells from three cell types. This dataset contains the gene *Psen1* (ENSMUSG00000019969) presented in [Shulman et al, 2019](#1).
+
+```{r}
+library(movAPA, warn.conflicts = FALSE, quietly=TRUE)
+data(scPACds)
+summary(scPACds)
+head(scPACds@counts[1:2,1:5]) 
+head(scPACds@anno, n=2)
+head(scPACds@colData, n=2) 
+levels(scPACds@colData$celltype)
+```
+
+## Reference genome
+
+The reference genome is not necessary for this case study, while it is required for removing internal priming or poly(A) signal analyses. movAPA uses reference genome sequences that are represented as a *BSgenome* object or stored in a fasta file. To use *BSgenome* object, please refer to the *BSgenome* package for obtaining a *BSgenome* object for your species.
+
+## Genome annotation
+
+Genome annotation stored in a GFF/GTF file or a TXDB R object can be used for annotating PACs. The function *parseGenomeAnnotation* is used to parse the given annotation and the processed annotation can be saved into an rdata object for further use. The genome annotation file is not necessary for this case study as the information has been stored in scPACds.
+
+Process the genome annotation of mm10 represented as TxDb object.
+
+```{r parseTxdb, eval=FALSE}
+library(TxDb.Mmusculus.UCSC.mm10.ensGene)
+txdbmm10 <- TxDb.Mmusculus.UCSC.mm10.ensGene
+
+scPACds=createPACdataset(scPACds@counts, scPACds@anno, scPACds@colData, forceSparse = TRUE)
+scPACds=annotatePAC(scPACds, txdbmm10)
+```
+
+# Preprocessing of PAC data
+
+## Extending annotated 3'UTRs
+
+Genes with or without annotated 3'UTR could be assigned an extended 3'UTR of a given length using the function `ext3UTRPACds`, which can improve the "recovery" of poly(A) sites falling within authentic 3'UTRs.
+
+Before extending, we can calculate the number of PACs falling into extended 3'UTRs of different lengths.
+
+```{r testExt3UTR}
+testExt3UTR(scPACds, seq(1000, 10000, by=1000))
+```
+
+Here we extended 3'UTR length for 2000 bp. After extension, 70 PACs in intergenic region are now in extended 3'UTRs.
+
+```{r ext3UTR}
+table(scPACds@anno$ftr)
+scPACds=ext3UTRPACds(scPACds, ext3UTRlen=2000)
+table(scPACds@anno$ftr)
+```
+
+## Normalization
+
+The function *normalizePACds* can be called for normalization, which implements three strategies including TPM (Tags Per Million), the normalization method of DESeq ([Anders and Huber, 2010](#2)), and the TMM method used in EdgeR ([Robinson, et al., 2010](#3)).
+
+**Note: normalization should be performed in caution, because different methods would have significant and different impact on the data and downstream analysis!**
+
+Here is an example to normalize the data using the TPM method.
+
+```{r normalize}
+scPACdsNorm2=normalizePACds(scPACds, method='TPM') 
+head(Matrix::colSums(scPACdsNorm2@counts))
+```
+
+## Filter PACs or cells
+
+We can use `subsetPACds` to filter PACs by different options. Here we filter PACs with total counts\>=20 and remove intergenic PACs.
+
+```{r subsetPACds1}
+scPACdsFlt=subsetPACds(scPACds, totPACtag=20, choosePA=NULL,
+                       noIntergenic=TRUE, verbose=TRUE) 
+summary(scPACdsFlt)
+```
+
+Filter only PACs in 3'UTR and obtain PACs in 3'UTRs with \>=2 PACs.
+
+```{r subsetPACds2}
+scPACdsFlt=get3UTRAPAds(scPACdsFlt, sortPA=TRUE, choose2PA=NULL)
+summary(scPACdsFlt)
+```
+
+# Statistics of PACds
+
+## PAC distributions among cell types
+
+To make statistics of PACs among cell types, first we pool cells of the same cell type.
+
+```{r pool}
+scPACdsCt=subsetPACds(scPACds, group='celltype', pool=TRUE)
+```
+
+Make statistics of PAC distributions in each cell type.
+
+```{r movStat}
+scPACdsCtStat=movStat(scPACdsCt, minPAT=c(20, 40), ofilePrefix=NULL)
+```
+
+Statistical results of PACs with total read counts \>=20.
+
+```{r}
+scPACdsCtStat$pat20
+```
+
+Plot statistical results by various barplots. Results showed that there are more PACs expressed in RS and SC than in ES.
+
+```{r plotPACdsStat, fig.dim=c(6,4)}
+plotPACdsStat(scPACdsCtStat, pdfFile=NULL)
+```
+
+## PAC distributions in single cells
+
+Make statistics for PAT and PAC distributions in each cell, using PAT cutoffs 1 and 5.
+
+```{r movStat_sc}
+scPACdsStat=movStat(scPACds, minPAT=c(1,5), ofilePrefix='scPACds.stat')
+```
+
+Statistics of pooled data
+
+```{r}
+scPACdsStat$pat1['total',]
+```
+
+Summary of PAC# in each cell, ranging from 56 PACs per cell to 354 PACs per cell.
+
+```{r}
+summary(scPACdsStat$pat1$nPAC[1:(nrow(scPACdsStat$pat1)-1)])
+```
+
+Summary of PAT# (read count) in each cell, ranging from 154 PACs per cell to 5712 PACs per cell.
+
+```{r}
+summary(scPACdsStat$pat1$nPAT[1:(nrow(scPACdsStat$pat1)-1)])
+```
+
+Here we plot barplots showing distributions of PACs and PATs among cells. First we create the data for plot using all PACs (PAT cutoff=1), and remove the 'total' line.
+
+```{r message=FALSE}
+d=scPACdsStat$pat1[, c('nPAC','nPAT','nGene','nAPAgene','APAextent')]
+d$cell=rownames(d)
+d=d[1:(nrow(d)-1), ]
+d=reshape2::melt(d)
+```
+
+Plot barplots to Show the distribution of PAT#, PAT#, gene#, APA gene#, and APA gene%.
+
+```{r plot_sc, warning=FALSE, message=FALSE, fig.dim=c(7,7)}
+library(ggplot2, quietly = TRUE)
+sp <- ggplot(data=d, aes(x=cell, y=value, color=variable)) +
+  geom_bar(stat='identity', width=1.1)
+sp = sp + theme_bw() +  guides(color=FALSE) + 
+  theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank())
+sp + facet_wrap( ~ variable, ncol=2, scales="free")
+```
+
+# Analyses of APA dynamics
+
+## Detecting DE PACs
+
+movAPA provides the function *movDEPAC* to identify DE PACs between samples. Three strategies were utilized: (i) using DESeq2 with replicates; (ii) using DEXseq with replicates; (iii) using chi-squared test without replicates ("chisq"). The strategy of chi-squared test was used in the study on single cell APA for detecting differential usage of PACs among cells ([Shulman and Elkon, 2019](#1)). For single cell data, we highly recommand the chisq method because it is much faster than the other two methods.
+
+**Note: DE detection should be performed in caution, because different methods would have significant and different impact on the DE results!**
+
+Detecting DE PACs using chisq method for genes with total counts\>=50.
+
+```{r movDEPAC}
+DEqPAC=movDEPAC(scPACdsCt, method='chisq', group='celltype',
+                minSumPAT=50, chisqPadjust=TRUE)
+```
+
+Make statistics of the DE PAC result from the chisq method. Here the value column of DEqPAC is 1-pvalue_of_the_gene. So using padjThd=0.05 and valueThd=0.95 means filtering DE PACs with adjusted pvalue of PAC \<0.05 and adjusted pvalue of gene \<0.05.
+
+```{r movStat_DE, message=FALSE}
+stat=movStat(object=DEqPAC, padjThd=0.05, valueThd=0.95)
+stat$nsig
+head(stat$ovp)
+head(stat$siglist[[1]])
+```
+
+Output full list of DE PACs.
+
+```{r movSelect_DE}
+sel=movSelect(aMovRes=DEqPAC, condpair='SC.RS', 
+              padjThd=0.05, valueThd=0.95, 
+              out='full', PACds=scPACdsCt)
+head(sel, n=2)
+```
+
+For all DE PACs in all condtions pairs, examine the DE status of each PAC.
+
+```{r eval=-3}
+head(stat$tf01)
+## Output stat results into files: "DEqPAC.plots.pdf" and 'DEqPAC.stat'.
+outputHeatStat(heatStats=stat, ostatfile='DEqPAC.stat', plotPre='DEqPAC')
+```
+
+Visualize a DE PAC in gene ENSMUSG00000019969 by *movViz*.
+
+First, we examine all PACs in this gene. There are two 3'UTR PACs (PA2503 and PA2504).
+
+```{r}
+gene='ENSMUSG00000019969'
+gp=scPACds[scPACds@anno$gene==gene, ]
+cbind(gp@anno$ftr, Matrix::rowSums(gp@counts))
+```
+## Plot DE PACs
+
+Plot all PACs in this gene. Here we used scPACdsCt instead of scPACds to plot the total expression levels of PACs in a cell type.
+But, first we need to prepare the genome annotation.
+
+```{r gff}
+library(TxDb.Mmusculus.UCSC.mm10.ensGene)
+txdbmm10 <- TxDb.Mmusculus.UCSC.mm10.ensGene
+gff=parseGenomeAnnotation(txdbmm10)
+```
+
+```{r movViz, fig.dim=c(7, 5), message=FALSE}
+movViz(object=scPACdsCt, gene=gene, txdb=gff, group='celltype')
+```
+
+Visualize PACs of this gene in individual cell types. In the plot, the Y-axis is read count, the scale of which is different among conditions. Only show DE PACs with padj \< padjThd and show 3'UTR region instead of the gene model.
+
+```{r movViz_nogff, fig.dim=c(7, 5), message=FALSE}
+movViz(object=DEqPAC, gene=gene, txdb=NULL,
+       PACds=scPACdsCt,
+       collapseConds=FALSE, padjThd=0.01,
+       showRatio=FALSE, showAllPA=FALSE)
+```
+
+Show condition pairs in individual tracks. If padjThd is given, then the DE PACs (padj \< padjThd) will be highlighted (dashed yellow line).
+
+```{r  fig.dim=c(7, 7), message=FALSE}
+movViz(object=DEqPAC, gene=gene, txdb=NULL, PACds=scPACdsCt, collapseConds=T, 
+       padjThd=0.01, showPV=TRUE, showRatio=TRUE, showAllPA=T)
+```
+
+## Fisher's exact test for APA genes
+
+Here we detect genes with dynamic APA usages among cell types using Fisher's exact test. This is similar to the method (*test_apa*) used in ([Shulman and Elkon, 2019](#1)). The Fisher's exact test is performed for genes with at least two 3'UTR PACs.
+
+```{r movAPAswitch, message=FALSE}
+sw=movAPAswitch(PACds=scPACds, group='celltype',
+                avgPACtag=0, avgGeneTag=0,
+                only3UTR=TRUE, mergeReps='pool',
+                aMovDEPACRes=NULL, DEPAC.padjThd=NULL, nDEPAC=0,
+                mindist=0, fisherThd=0.05, logFCThd=0, cross=FALSE,
+                selectOne='fisherPV')
+
+head(sw@fullList$SC.RS, n=2)
+## Filter results with padj<0.05.
+swstat=movStat(object=sw, padjThd=0.05, valueThd=0)
+## Number of significant switching genes between cell types.
+swstat$nsig 
+head(swstat$siglist$SC.RS)
+```
+
+## Detecting 3'UTR switching genes
+
+This is similar to the above Fisher's exact test, while it is stricter. The switching criteria: at least 1 DEqPAC; fisher's test of the two PACs pvalue\<fisherThd; logFC of the two PACs\>=logFCThd.
+
+If more than one switching pair was found in a gene, only the pair with the smallest Fisher's test's pvalue (selectOne='fisherPV') was returned.
+
+```{r movAPAswitch2}
+swDEq=movAPAswitch(PACds=scPACds, group='celltype',
+                   avgPACtag=0, avgGeneTag=0,
+                   only3UTR=TRUE, mergeReps='pool',
+                   aMovDEPACRes=DEqPAC, DEPAC.padjThd=0.05, nDEPAC=1, 
+                   mindist=50, fisherThd=0.05, logFCThd=1, 
+                   cross=FALSE, selectOne='fisherPV')
+```
+
+Get 3'UTR switching results.
+
+```{r message=FALSE}
+swDEqStat=movStat(object=swDEq, padjThd=0.01, valueThd=1, upThd=NULL, dnThd=NULL)
+swDEqStat$nsig
+```
+
+Compare results from the two 3'UTR switching methods.
+
+```{r movAPAswitch_compare, message=FALSE, fig.dim=c(6,4)}
+nsig=as.data.frame(cbind(swstat$nsig, swDEqStat$nsig))
+colnames(nsig)=c('Fisher.test', 'Fisher.test+DE')
+nsig$cellType=rownames(nsig)
+nsig=reshape2::melt(nsig, variable.name='Method', value.name="SwitchingEvents")
+ggplot(data=nsig, aes(x=cellType, y=SwitchingEvents, fill=Method)) + 
+  geom_bar(stat="identity", position=position_dodge()) + 
+  ylab("Switching Gene#") + theme_bw()
+```
+
+Plot heatmap to view switching status of each gene among all cell types. First convert the *movRes* object to a heatmap object.
+
+```{r movRes2heatmapResults}
+heat=movRes2heatmapResults(swDEq)
+```
+
+Filter switching genes.
+
+```{r}
+heat=subsetHeatmap(heat, padjThd=0.001, valueThd=2)
+nrow(heat@value)
+```
+
+Select top 20 genes for the plot.
+
+```{r}
+heat@value=heat@value[rowSums(is.na(heat@value))==0, ]
+heat@value=heat@value[order(rowMeans(abs(heat@value)), decreasing =T ), ]
+nrow(heat@value)
+```
+
+From the heatmap, we can see gene ENSMUSG00000021281 is shorter from SC to RS (value=-5), from SC to ES (value=-14), and from RS to ES (value=-5). This means that the length of 3'UTR of this gene is ES \< RS \< SC, which is consistent with the 3UTR shortening during sperm cell differentiation found in the previous study.
+
+```{r fig.dim=c(6,4), message=FALSE, warning=FALSE}
+plotHeatmap(heat@value[1:20, ],  show_rownames=TRUE, plotPre=NULL)
+heat@value['ENSMUSG00000021281',]
+```
+
+Get the APA switching list between SC and RS for this gene. This gene has three pairs of switching APA sites between SC and RS. But because we set selectOne='fisherPV' in the movAPAswitch function, only the pair with smallest pvalue was returned.
+
+```{r}
+swDEq@fullList$SC.RS[swDEq@fullList$SC.RS$gene=='ENSMUSG00000021281',]
+```
+
+## Visualization of 3'UTR switching genes
+
+Use *movViz* to show this gene which has three 3'UTR PACs.
+
+```{r fig.dim=c(7, 5), message=FALSE}
+gene='ENSMUSG00000021281'
+movViz(object=swDEq, gene=gene, txdb=gff, PACds=scPACdsCt)
+```
+
+Just show the 3'UTR region.
+
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=swDEq, gene=gene, txdb=NULL, PACds=scPACdsCt)
+```
+
+Show only PACs involved in the 3'UTR switching.
+
+```{r fig.dim=c(7, 5), message=FALSE}
+movViz(object=swDEq, gene=gene, txdb=NULL, PACds=scPACdsCt, collapseConds=TRUE,
+       conds=NULL, highlightConds=NULL, showRatio=TRUE, linkPAs=TRUE, 
+       padjThd=0.01, showAllPA=FALSE, showPV=FALSE)
+```
+
+## Proximal PAC's GPI index
+
+Here we calculate GPI index of each APA gene for each cell. GPI of a gene is the "geo"" score of the proximal poly(A) site. The "geo" metric measures the usage of a poly(A) site by the geometric mean, which was used for measuring poly(A) site usage in single cells ([Shulman et al, 2019](#1)). First, filter 3'UTR's proximal and distal PACs.
+
+```{r eval=FALSE}
+ds=get3UTRAPAds(scPACds, sortPA=TRUE, choose2PA='PD')
+gpi=movAPAindex(ds, method="GPI")
+head(gpi[1:5, 1:5])
+gpi=gpi[rowSums(is.na(gpi))==0, ]
+```
+
+Calculate GPI for each cell type.
+
+```{r movAPAindex_GPI}
+ds2=subsetPACds(scPACdsCt, group='celltype', pool=TRUE)
+ds2=get3UTRAPAds(ds2, sortPA=TRUE, choose2PA='PD')
+gpi2=movAPAindex(ds2, method="GPI")
+summary(gpi2)
+```
+
+The plot of the distribution of GPI values is similar to the Fig. 3D of [Shulman et al, 2019](#1).
+
+```{r fig.dim=c(4,3), warning=FALSE, message=FALSE}
+plotCummPAindex(PAindex=gpi2, groupName='cell type', xlab='GPI') 
+```
+
+The plot of the distribution of Shannon index (tissue-specificity) for each PAC.
+
+```{r movAPAindex_shan, fig.dim=c(4,3), warning=FALSE, message=FALSE}
+shan=movPAindex(scPACdsCt, method="shan")
+plotCummPAindex(PAindex=shan[, -c(1:3)], 
+                groupName='cell type', xlab='Shannon index') 
+```
+
+# Visualize PACs in single cells
+
+We can use *movVizSC* function which utilizes the R packages millefy ([Ozaki et al., 2020](#4)) for the single-cell plot.
+
+However, we recommend use the [*vizAPA*](https://github.com/BMILAB/vizAPA) package for more elegant plots.
+
+```{r movVizSC, fig.dim=c(7, 5), message=FALSE}
+gene='ENSMUSG00000019969'
+
+movVizSC(scPACds, gene, cellGroupName='celltype', txdb=NULL,
+         cellGroupColors=NULL, showRatio = F)
+
+## Plot the expression levels of cell types as ratios, and specify colors for cell types.
+movVizSC(scPACds, gene, cellGroupName='celltype', txdb=NULL,
+         cellGroupColors=c(SC="yellow", ES="red",RS="blue"), showRatio = T)
+```
+
+# Session Information
+
+The session information records the versions of all the packages used in the generation of the present document.
+
+```{r}
+sessionInfo()
+```
+
+# References {#refer}
+[[1] Shulman, E.D. and Elkon, R. (2019) Cell-type-specific analysis of alternative polyadenylation using single-cell transcriptomics data. Nucleic Acids Res., 47, 10027-10039.]{#1}
+
+[[2] Anders, S. and Huber, W. (2010) Differential expression analysis for sequence count data. Genome Biol., 11, 2010-2011.]{#2}
+
+[[3] Robinson, M.D., McCarthy, D.J. and Smyth, G.K. (2010) edgeR: a Bioconductor package for differential expression analysis of digital gene expression data. Bioinformatics, 26, 139-140.]{#3}
+
+[[4] Ozaki, H., Hayashi, T., Umeda, M. and Nikaido, I. (2020) Millefy: visualizing cell-to-cell heterogeneity in read coverage of single-cell RNA sequencing datasets. BMC Genomics, 21, 177.]{#4}

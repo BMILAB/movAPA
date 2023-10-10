@@ -1,0 +1,84 @@
+## ---- include = FALSE---------------------------------------------------------
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.height = 5.5,
+  collapse = TRUE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+## ----load_data, eval=FALSE----------------------------------------------------
+#  library(movAPA)
+#  pac=read.csv('arabidopsis_thaliana.SRP093950_amp.high_confidence.PAC.annotation.tpm.csv', stringsAsFactors =F)
+#  
+#  ## Rename annotation columns.
+#  ## In a PACdataset, the annotation column names must be named as (gene/gene_type/ftr/ftr_start/ftr_end/UPA_start/UPA_end).
+#  ## Other non-sample columns will be also retained in the @anno slot of the PACdataset.
+#  pac=dplyr::rename(pac, UPA_start = 'start', UPA_end='end', gene_type='biotype')
+#  colnames(pac)
+#  
+#  ## Describe the sample columns and corresponding group(s) in a data.frame
+#  colData=as.data.frame(matrix(c('Amp','Amp','Amp'), ncol=1, dimnames=list(paste0('Amp311_R',1:3), 'group')))
+#  
+#  ## Read the PAC file into a PACdataset
+#  PACds=readPACds(pacFile=pac, colDataFile=colData, noIntergenic=FALSE, PAname='PA')
+#  
+#  PACds
+
+## ----eval=FALSE---------------------------------------------------------------
+#  # For example, users can remove internal priming artifacts
+#  library("BSgenome.Athaliana.TAIR.TAIR9")
+#  bsgenome <- BSgenome.Athaliana.TAIR.TAIR9
+#  
+#  # Please make sure the chr name of your PAC data is the same as the BSgenome.
+#  seqnames(bsgenome)
+#  
+#  PACdsIP=removePACdsIP(PACds, bsgenome, returnBoth=TRUE,
+#                        up=-10, dn=10, conA=6, sepA=7)
+#  length(PACdsIP$real)
+#  length(PACdsIP$ip)
+#  
+#  # Base compostions and k-grams
+#  faFiles=faFromPACds(PACds, bsgenome, what='updn', fapre='updn',
+#                      up=-300, dn=100, byGrp='ftr')
+
+## ----fig.dim=c(6,4), eval=FALSE-----------------------------------------------
+#  faFiles=c("updn.3UTR.fa", "updn.CDS.fa", "updn.intergenic.fa", "updn.intron.fa")
+#  ## Plot single nucleotide profiles using the extracted sequences and merge all plots into one.
+#  plotATCGforFAfile (faFiles, ofreq=FALSE, opdf=FALSE,
+#                     refPos=301, mergePlots = TRUE)
+
+## ----load_data2, eval=FALSE---------------------------------------------------
+#  ## Read a BED file
+#  pac=read.table('arabidopsis_thaliana.SRP093950_amp.high_confidence.PAC.bed',
+#                 header=F, stringsAsFactors =F)
+#  head(pac)
+#  
+#  # We only keep the chr/strand/coord, here we used the start position as the coord.
+#  colnames(pac)=c('chr','coord','x','dot','strand')
+#  pac=pac[,c('chr','strand','coord')]
+#  
+#  # We don't have any expression level of the sample,
+#  # so we only read the PAC list and set the expression as 1.
+#  ## Read the PAC file into a PACdataset
+#  PACds=readPACds(pacFile=pac, colDataFile=NULL, noIntergenic=FALSE, PAname='PA')
+#  PACds
+
+## ----eval=FALSE---------------------------------------------------------------
+#  # Please download the genome annotation file of Arabidopsis TAIR 10
+#  # in gff3 format from the tair website.
+#  athGFF="Arabidopsis_thaliana.TAIR10.42.gff3"
+#  
+#  # First we parse the gff3 file.
+#  gff=parseGff(athGFF)
+#  
+#  # Please make sure the chromosome name of your PAC data
+#  # is the same as the gff file (and the BSgenome)
+#  head(gff$anno.need)
+#  
+#  # You can also save the parsed gff file as an rda object for further use.
+#  # save(gff, file='TAIR10.gff.rda')
+#  # Annotate the PAC data
+#  PACds=annotatePAC(PACds, gff)
+#  PACds
+
