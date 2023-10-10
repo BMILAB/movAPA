@@ -1,0 +1,9 @@
+2023.10.10 movAPA v0.2.0 released
+# Change the @counts type from data frame to AnyMatrix, to add better support for single-cell data for some functions.
+# Speedup mergePACds for single-cell data, the previous function in v0.1.0 was renamed mergePACds_v0.
+# Add smartRUD index for movAPAindex, add get3UTRAPApd function to get proximal and distal PAs in a smarter way.
+# Add functions getNearbyPAdist, which can be used for determine dist parameter in get3UTRAPApd.
+# Add function testExt3UTR, which can be used for determine ext3UTRlen parameter in ext3UTRPACds.
+# Add function buildRefPACdsAnno, and allow mergePACds to use refPACds for merging multiple samples.
+# Fix bugs about clearPAT parameter in some functions.
+  
