@@ -1,4 +1,4 @@
-# movAPA
+# movAPA v0.2.0 (released on 2023/10/10)
 **Mo**deling and **v**isualization of dynamics of **a**lternative **p**oly**a**denylation across biological samples
 
 ## About
