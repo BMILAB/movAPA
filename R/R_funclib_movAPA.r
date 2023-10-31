@@ -2162,7 +2162,7 @@ get3UTRAPApd<-function(pacds, minDist=50, maxDist=1e4, minRatio=0.05, fixDistal=
     } else if (length(idx)==0) {
       return(c())
     } else { #idx[which(d$dist[idx]==min(d$dist[idx]))]
-      idx3=idx[which(d$dist[idx]==min(d$dist[idx]))]
+      idx3=idx[which(d$dist[idx]==min(d$dist[idx]))][1]
       return(c(d$p1[idx3], d$p2[idx3]))
     }
     return(c())
