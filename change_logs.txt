@@ -7,4 +7,7 @@
 # Add function buildRefPACdsAnno, and allow mergePACds to use refPACds for merging multiple samples.
 # Fix bugs about clearPAT parameter in some functions.
 # Add a new vignette "movAPA_on_scAPAtrap_results", which describes the use of movAPA on single-cell data.
+
+2023.10.31
+# Fix a bug in get3UTRAPApd().
   
