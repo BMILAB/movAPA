@@ -1779,7 +1779,8 @@ subsetPACds<-function(pacds,
     pacds@colData=data.frame(group=conds)
     colnames(pacds@colData)=group
     rownames(pacds@colData)=conds
-    pacds@counts=round(pacds@counts)
+    #2023/12/29 not round because the PACds may be RUD-like ratio data  
+    #pacds@counts=round(pacds@counts)
     for (i in 1:ncol(pacds@colData)) {
       pacds@colData[,i]=factor(pacds@colData[,i])
     }
